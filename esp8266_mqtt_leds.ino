@@ -119,8 +119,18 @@ void setup() {
           strcpy(c_LEDtype, doc["LEDtype"]);
           strcpy(c_numLEDs, doc["numLEDs"]);
           strcpy(c_idx, doc["idx"]);
+          #if DEBUG
+          Serial.serializeJson(doc);
+          #endif
         } else {
+          #if DEBUG
+          Serial.println("Error reading JSON from config file.");
+          #endif
         }
+      } else {
+        #if DEBUG
+        Serial.println("Config file does not exist.");
+        #endif
       }
     }
   } else {
@@ -213,9 +223,15 @@ void setup() {
     File configFile = SPIFFS.open("/config.json", "w");
     if ( !configFile ) {
       // failed to open config file for writing
+      #if DEBUG
+      Serial.println("Error opening config file fo writing.");
+      #endif
     } else {
       serializeJson(doc, configFile);
       configFile.close();
+      #if DEBUG
+      Serial.serializeJson(doc);
+      #endif
     }
   }
 //----------------------------------------------------------
@@ -236,11 +252,11 @@ void setup() {
   //leds = new CRGB[numLEDs];
   leds = (CRGB*)calloc(numLEDs, sizeof(CRGB));
   if ( strcmp(c_LEDtype,"WS2801")==0 ) {
-    FastLED.addLeds<WS2801, DATA_PIN, CLOCK_PIN, RGB>(leds, numLEDs);
+    FastLED.addLeds<WS2801, DATA_PIN, CLOCK_PIN, RGB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
   } else if ( strcmp(c_LEDtype,"WS2811")==0 ) {
-    FastLED.addLeds<WS2811, DATA_PIN, GRB>(leds, numLEDs);
+    FastLED.addLeds<WS2811, DATA_PIN, GRB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
   } else if ( strcmp(c_LEDtype,"WS2812")==0 ) {
-    FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, numLEDs);
+    FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
   } else {
   }
   heat = (byte*)calloc(numLEDs, sizeof(byte));  // Fire effect static data buffer
@@ -308,10 +324,6 @@ void loop() {
                               1, 1, 
                               true, random(5,50), random(50,100), 
                               random(500, 5000));
-//                HalloweenEyes(0xff, 0x00, 0x00, 
-//                              1, 2, 
-//                              true, random(5,50), random(50,150), 
-//                              random(1000, 10000));
                 break;
               }
               
@@ -383,8 +395,8 @@ void loop() {
               }
 
     case 15 : {
-                // Fire - Cooling rate, Sparking rate, speed delay
-                Fire(55,120,15);
+                // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS)
+                Fire(55,120,30);
                 break;
               }
 
@@ -411,7 +423,7 @@ void loop() {
 
     case 18 : {
                 // meteorRain - Color (red, green, blue), meteor size, trail decay, random trail decay (true/false), speed delay 
-                meteorRain(0xff,0xff,0xff,10, 64, true, 30);
+                meteorRain(0xff,0xff,0x80, 8, 48, true, 30);
                 break;
               }
 
@@ -443,7 +455,6 @@ void RGBLoop(){
         case 1: setAll(0,k,0); break;
         case 2: setAll(0,0,k); break;
       }
-      showStrip();
     }
     #if DEBUG
     Serial.println("RGBLoop FadeOut");
@@ -455,7 +466,6 @@ void RGBLoop(){
         case 1: setAll(0,k,0); break;
         case 2: setAll(0,0,k); break;
       }
-      showStrip();
     }
   }
 }
@@ -1038,34 +1048,15 @@ void meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTra
 
 // used by meteorrain
 void fadeToBlack(int ledNo, byte fadeValue) {
- #ifdef ADAFRUIT_NEOPIXEL_H 
-    // NeoPixel
-    uint32_t oldColor;
-    uint8_t r, g, b;
-    int value;
-    
-    oldColor = strip.getPixelColor(ledNo);
-    r = (oldColor & 0x00ff0000UL) >> 16;
-    g = (oldColor & 0x0000ff00UL) >> 8;
-    b = (oldColor & 0x000000ffUL);
-
-    r=(r<=10)? 0 : (int) r-(r*fadeValue/256);
-    g=(g<=10)? 0 : (int) g-(g*fadeValue/256);
-    b=(b<=10)? 0 : (int) b-(b*fadeValue/256);
-    
-    strip.setPixelColor(ledNo, r,g,b);
- #endif
- #ifndef ADAFRUIT_NEOPIXEL_H
    // FastLED
    leds[ledNo].fadeToBlackBy( fadeValue );
- #endif  
 }
 
 // *** REPLACE TO HERE ***
 
 
 // ***************************************
-// ** FastLed/NeoPixel Common Functions **
+// ** Common Functions **
 // ***************************************
 
 // Apply LED color changes
@@ -1073,28 +1064,16 @@ void showStrip() {
   yield();    // allow other tasks
   if ( client.connected() ) client.loop(); //check MQTT
   
-#ifdef ADAFRUIT_NEOPIXEL_H 
-  // NeoPixel
-  strip.show();
-#endif
-#ifndef ADAFRUIT_NEOPIXEL_H
   // FastLED
   FastLED.show();
-#endif
 }
 
 // Set a LED color (not yet visible)
 void setPixel(int Pixel, byte red, byte green, byte blue) {
- #ifdef ADAFRUIT_NEOPIXEL_H 
-   // NeoPixel
-   strip.setPixelColor(Pixel, strip.Color(red, green, blue));
- #endif
- #ifndef ADAFRUIT_NEOPIXEL_H 
    // FastLED
    leds[Pixel].r = red;
    leds[Pixel].g = green;
    leds[Pixel].b = blue;
- #endif
 }
 
 // Set all LEDs to a given color and apply it (visible)
