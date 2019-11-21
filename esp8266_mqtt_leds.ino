@@ -35,6 +35,7 @@ CRGB *leds = NULL;
 int selectedEffect = -1;
 int numLEDs = 1;
 byte *heat; // Fire effect static data
+int gHue = 0;
 
 // Update these with values suitable for your network.
 char mqtt_server[40] = "192.168.70.11";
@@ -71,7 +72,7 @@ void subtractInterval();
 //-----------------------------------------------------------
 // main setup
 void setup() {
-  char str[11];
+  char str[16];
 
   Serial.begin(115200);
   delay(5000);
@@ -95,11 +96,50 @@ void setup() {
   Serial.println("Starting WiFi manager");
   #endif
 
+  // request 16 bytes from EEPROM & write LED info
+  EEPROM.begin(16);
+//  EEPROM.get(0, str);
+
+  #if DEBUG
+  Serial.println("");
+  Serial.print("EEPROM data: ");
+  #endif
+  for ( int i=0; i<15; i++ ) {
+    str[i] = EEPROM.read(i);
+    #if DEBUG
+    Serial.print(str[i], HEX);
+    Serial.print(":");
+    #endif
+  }
+  #if DEBUG
+  Serial.print(" (");
+  Serial.print(str);
+  Serial.println(")");
+  #endif
+
+  EEPROM.commit();
+  EEPROM.end();
+  if ( strncmp(str,"WS",2) == 0 ) {
+    sscanf(str,"%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
+  }
+  delay(120);
+
 //----------------------------------------------------------
+  //clean FS, for testing
+  //SPIFFS.format();
+
   //read configuration from FS json
   if ( SPIFFS.begin() ) {
+    #if DEBUG
+    Serial.println("SPIFFS begin.");
+    #endif
+
     if ( SPIFFS.exists("/config.json") ) {
       //file exists, reading and loading
+      #if DEBUG
+      Serial.println("File found.");
+      #endif
+      
       File configFile = SPIFFS.open("/config.json", "r");
       if ( configFile ) {
         size_t size = configFile.size();
@@ -115,12 +155,8 @@ void setup() {
           strcpy(mqtt_port, doc["mqtt_port"]);
           strcpy(username, doc["username"]);
           strcpy(password, doc["password"]);
-
-          strcpy(c_LEDtype, doc["LEDtype"]);
-          strcpy(c_numLEDs, doc["numLEDs"]);
-          strcpy(c_idx, doc["idx"]);
           #if DEBUG
-          Serial.serializeJson(doc);
+          serializeJson(doc, Serial);
           #endif
         } else {
           #if DEBUG
@@ -134,8 +170,9 @@ void setup() {
       }
     }
   } else {
-    //clean FS, for testing
-    SPIFFS.format();
+    #if DEBUG
+    Serial.println("SPIFFS failed.");
+    #endif
   }
   //end read
 
@@ -148,7 +185,7 @@ void setup() {
   WiFiManagerParameter custom_password("password", "password", password, 32);
 
   WiFiManagerParameter custom_ledtype("LEDtype", "LED type (WS28xx)", c_LEDtype, 6);
-  WiFiManagerParameter custom_numleds("numLEDs", "Number of LEDs", c_numLEDs, 5);
+  WiFiManagerParameter custom_numleds("numLEDs", "Number of LEDs", c_numLEDs, 3);
   WiFiManagerParameter custom_idx("idx", "Domoticz switch IDX", c_idx, 3);
 
   // WiFiManager
@@ -216,10 +253,6 @@ void setup() {
     doc["username"] = username;
     doc["password"] = password;
 
-    doc["LEDtype"] = c_LEDtype;
-    doc["numLEDs"] = c_numLEDs;
-    doc["idx"] = c_idx;
-
     File configFile = SPIFFS.open("/config.json", "w");
     if ( !configFile ) {
       // failed to open config file for writing
@@ -230,9 +263,18 @@ void setup() {
       serializeJson(doc, configFile);
       configFile.close();
       #if DEBUG
-      Serial.serializeJson(doc);
+      serializeJson(doc, Serial);
       #endif
     }
+
+    // request 16 bytes from EEPROM & write LED info
+    sprintf(str,"%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
+    EEPROM.begin(16);
+    EEPROM.put(0, str);
+    EEPROM.commit();
+    EEPROM.end();
+    delay(120);
+
   }
 //----------------------------------------------------------
 
@@ -273,24 +315,23 @@ void setup() {
 }
 
 void loop() {
-  char rRGB[3];
+  CRGB rRGB;
   
   if (!client.connected()) {
     mqtt_reconnect();
   }
   client.loop();
 
-  RandomColor(rRGB);
-  
+  rRGB = CHSV(gHue++,255,255);
+  if ( gHue > 255 ) gHue = 0;
+   
   #if DEBUG
-  Serial.print("Effect: ");
-  Serial.println(selectedEffect, DEC);
   Serial.print("Color: ");
-  Serial.print(rRGB[0],HEX);
-  Serial.print(rRGB[1],HEX);
-  Serial.println(rRGB[2],HEX);
+  Serial.print(rRGB.r,HEX);
+  Serial.print(rRGB.g,HEX);
+  Serial.println(rRGB.b,HEX);
   #endif
-  
+
   switch ( selectedEffect ) {
 
     case -1 : {
@@ -306,8 +347,8 @@ void loop() {
               }
 
     case 1  : {
-                // FadeInOut - Color (red, green. blue)
-                FadeInOut(rRGB[0], rRGB[1], rRGB[2]);
+                // FadeInOut - Color (red, green. blue), end pause
+                FadeInOut(rRGB.r, rRGB.g, rRGB.b, 250);
                 break;
               }
               
@@ -329,13 +370,13 @@ void loop() {
               
     case 4  : {
                 // CylonBounce - Color (red, green, blue), eye size, speed delay, end pause
-                CylonBounce(0xff, 0x00, 0x00, 4, 100, 10);
+                CylonBounce(0xff, 0x00, 0x00, 4, 70, 10);
                 break;
               }
               
     case 5  : {
                 // NewKITT - Color (red, green, blue), eye size, speed delay, end pause
-                NewKITT(rRGB[0], rRGB[1], rRGB[2], 4, 25, 250);
+                NewKITT(rRGB.r, rRGB.g, rRGB.b, (int)numLEDs/20+1, 30, 100);
                 break;
               }
               
@@ -365,13 +406,13 @@ void loop() {
               
     case 10 : {
                 // Running Lights - Color (red, green, blue), wave dealy
-                RunningLights(rRGB[0],rRGB[1],rRGB[2], 50);
+                RunningLights(rRGB.r,rRGB.g,rRGB.b, 50);
                 break;
               }
               
     case 11 : {
                 // colorWipe - Color (red, green, blue), speed delay
-                colorWipe(rRGB[0],rRGB[1],rRGB[2], 50);
+                colorWipe(rRGB.r,rRGB.g,rRGB.b, 50);
                 colorWipe(0,0,0, 50);
                 break;
               }
@@ -384,7 +425,7 @@ void loop() {
 
     case 13 : {
                 // theatherChase - Color (red, green, blue), speed delay
-                theaterChase(rRGB[0],rRGB[1],rRGB[2],100);
+                theaterChase(rRGB.r,rRGB.g,rRGB.b,100);
                 break;
               }
 
@@ -407,7 +448,7 @@ void loop() {
               
     case 16 : {
                 // mimic BouncingBalls
-                byte onecolor[1][3] = { {0xff, 0x00, 0x00} };
+                byte onecolor[1][3] = { {rRGB.r,rRGB.g,rRGB.b} };
                 BouncingColoredBalls(1, onecolor, false);
                 break;
               }
@@ -415,7 +456,7 @@ void loop() {
     case 17 : {
                 // multiple colored balls
                 byte colors[3][3] = { {0xff, 0x00, 0x00}, 
-                                      {0xff, 0xff, 0xff}, 
+                                      {0x00, 0xff, 0x00}, 
                                       {0x00, 0x00, 0xff} };
                 BouncingColoredBalls(3, colors, false);
                 break;
@@ -423,7 +464,7 @@ void loop() {
 
     case 18 : {
                 // meteorRain - Color (red, green, blue), meteor size, trail decay, random trail decay (true/false), speed delay 
-                meteorRain(0xff,0xff,0x80, 8, 48, true, 30);
+                meteorRain(0xff,0xff,0x40, (int)numLEDs/20+1, 64, true, 30);
                 break;
               }
 
@@ -470,7 +511,7 @@ void RGBLoop(){
   }
 }
 
-void FadeInOut(byte red, byte green, byte blue){
+void FadeInOut(byte red, byte green, byte blue, int EndPause){
   float r, g, b;
       
   #if DEBUG
@@ -493,7 +534,7 @@ void FadeInOut(byte red, byte green, byte blue){
     b = (k/256.0)*blue;
     setAll(r,g,b);
   }
-  delay(5);
+  delay(EndPause);
 }
 
 void Strobe(byte red, byte green, byte blue, int StrobeCount, int FlashDelay, int EndPause){
@@ -627,7 +668,7 @@ void CenterToOutside(byte red, byte green, byte blue, int EyeSize, int SpeedDela
   for(int i =((numLEDs-EyeSize)/2); i>=0; i--) {
     // fade brightness all LEDs one step
     for ( int j=0; j<numLEDs; j++ ) {
-      fadeToBlack(j, 10 );        
+      fadeToBlack(j, 64);
     }
     
     setPixel(i, red/10, green/10, blue/10);
@@ -657,7 +698,7 @@ void OutsideToCenter(byte red, byte green, byte blue, int EyeSize, int SpeedDela
   for(int i = 0; i<=((numLEDs-EyeSize)/2); i++) {
     // fade brightness all LEDs one step
     for ( int j=0; j<numLEDs; j++ ) {
-      fadeToBlack(j, 10 );        
+      fadeToBlack(j, 64);
     }
     
     setPixel(i, red/10, green/10, blue/10);
@@ -687,7 +728,7 @@ void LeftToRight(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, i
   for(int i = 0; i < numLEDs-EyeSize-2; i++) {
     // fade brightness all LEDs one step
     for ( int j=0; j<numLEDs; j++ ) {
-      fadeToBlack(j, 10 );        
+      fadeToBlack(j, 64);
     }
     
     setPixel(i, red/10, green/10, blue/10);
@@ -710,7 +751,7 @@ void RightToLeft(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, i
   for(int i = numLEDs-EyeSize-2; i > 0; i--) {
     // fade brightness all LEDs one step
     for ( int j=0; j<numLEDs; j++ ) {
-      fadeToBlack(j, 10 );        
+      fadeToBlack(j, 64);
     }
     
     setPixel(i, red/10, green/10, blue/10);
@@ -728,16 +769,20 @@ void Twinkle(byte red, byte green, byte blue, int Count, int SpeedDelay, boolean
   #if DEBUG
   Serial.println("Twinkle");
   #endif
-//  setAll(0,0,0);
+  setAll(0,0,0);
   for ( int i=0; i<Count; i++ ) {
-     setPixel(random(numLEDs),red,green,blue);
-     showStrip();
-     delay(SpeedDelay);
-     if ( OnlyOne ) { 
-       setAll(0,0,0); 
-     }
-   }
-  
+    // fade brightness all LEDs one step
+    for ( int j=0; j<numLEDs; j++ ) {
+      fadeToBlack(j, 64);
+    }
+    setPixel(random(numLEDs),red,green,blue);
+    showStrip();
+    delay(SpeedDelay);
+    if ( OnlyOne ) { 
+      setAll(0,0,0); 
+    }
+  }
+ 
   delay(SpeedDelay);
 }
 
@@ -1088,9 +1133,10 @@ void setAll(byte red, byte green, byte blue) {
 //---------------------------------------------------
 // MQTT callback function
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
+  char tmp[80];
   
   payload[length] = '\0'; // "just in case" fix
-
+/*
   #if DEBUG
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -1100,7 +1146,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
   #endif
-
+*/
   // convert to String & int for easier handling
   String newPayload = String((char *)payload);
 
@@ -1118,7 +1164,6 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       selectedEffect = (actionId/10)-1;
   
       // Publish effect state
-      char tmp[80];
       sprintf(tmp, "%s/effect", outTopic);
       sprintf(msg, "%d", selectedEffect);
       client.publish(tmp, msg);
@@ -1150,7 +1195,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   
     } else if ( strstr(topic,"/command/ledtype") ) {
       
-      newPayload.toCharArray(c_LEDtype,9);
+      newPayload.toCharArray(c_LEDtype,7);
       #if DEBUG
       Serial.print("New LED type: ");
       Serial.println(c_LEDtype);
@@ -1165,28 +1210,23 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       #endif
       return;
   
+    } else if ( strstr(topic,"/command/reset") ) {
+      
+      ESP.reset();
+  
     }
 
-    DynamicJsonDocument doc(1024);
-    doc["mqtt_server"] = mqtt_server;
-    doc["mqtt_port"] = mqtt_port;
-    doc["username"] = username;
-    doc["password"] = password;
-
-    doc["LEDtype"] = c_LEDtype;
-    doc["numLEDs"] = c_numLEDs;
-    doc["idx"] = c_idx;
-
-    File configFile = SPIFFS.open("/config.json", "w");
-    if ( !configFile ) {
-      // failed to open config file for writing
-    } else {
-      serializeJson(doc, configFile);
-      configFile.close();
+    // request 16 bytes from EEPROM & write LED info
+    sprintf(tmp,"%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
+    Serial.println(tmp);
+    EEPROM.begin(16);
+    for ( int i=0; i<13; i++ ) {
+      EEPROM.write(i, tmp[i]);
     }
-
-    delay(500);
-    ESP.reset();
+    EEPROM.commit();
+    EEPROM.end();
+    delay(120);
+    
   }
 }
 
