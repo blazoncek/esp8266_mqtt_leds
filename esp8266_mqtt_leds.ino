@@ -337,7 +337,8 @@ void loop() {
   switch ( selectedEffect ) {
 
     case -1 : {
-              fadeToBlackBy(leds, numLEDs, 25);  // 10% fade
+              fadeToBlackBy(leds, numLEDs, 128);  // 50% fade (6 steps)
+              showStrip();
               delay(500);
               break;
               }
@@ -358,17 +359,17 @@ void loop() {
               }
 
     case 3  : {
-              HalloweenEyes(CRGB::Red, 1, 1, true, 10);
+              HalloweenEyes(CRGB::Red, 1, 1, false);
               break;
               }
               
     case 4  : {
-              CylonBounce(min(numLEDs/20,4), 50);
+              CylonBounce(max(numLEDs/20,4), 50);
               break;
               }
               
     case 5  : {
-              NewKITT(rRGB, min((int)numLEDs/20,1), 30);
+              NewKITT(rRGB, max((int)numLEDs/20,2), 60);
               break;
               }
               
@@ -390,7 +391,7 @@ void loop() {
                
     case 9  : {
               // SnowSparkle
-              snowSparkle(20, random(100,750));
+              snowSparkle(30, random(100,750));
               break;
               }
               
@@ -401,7 +402,7 @@ void loop() {
               
     case 11 : {
               colorWipe(rRGB, 30);
-              colorWipe(CRGB::Black, 30);
+              colorWipeReverse(CRGB::Black, 30);
               break;
               }
 
@@ -440,7 +441,7 @@ void loop() {
               }
 
     case 18 : {
-              meteorRain(CRGB::White, min((int)numLEDs/20,5), 64, true, 30);
+              meteorRain(CRGB::White, min((int)numLEDs/20,5), 128, true, 30);
               break;
               }
 
@@ -450,7 +451,7 @@ void loop() {
               }
 
   }
-  if ( selectedEffect > 18 ) selectedEffect = 0;
+  if ( selectedEffect > 19 ) selectedEffect = 0;
 
 }
 
@@ -536,7 +537,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   
     } else if ( strstr(topic,"/command/effect") ) {
       
-      selectedEffect = max(min((int)newPayload.toInt(),18),-1);
+      selectedEffect = max(min((int)newPayload.toInt(),19),-1);
       #if DEBUG
       Serial.print("New effect: ");
       Serial.println(selectedEffect, DEC);

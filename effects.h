@@ -11,8 +11,8 @@ void showStrip();
 // LED effects
 void RGBLoop();
 void FadeInOut(CRGB c);
-void Strobe(CRGB c, int Count=10, int FlashDelay=10);
-void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade, int Steps);
+void Strobe(CRGB c, int FlashDelay=100);
+void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade=true);
 void CylonBounce(int EyeSize, int SpeedDelay);
 void NewKITT(CRGB c, int EyeSize, int SpeedDelay);
 void CenterToOutside(CRGB c, int EyeSize, int SpeedDelay, boolean Fade=true);
@@ -25,6 +25,7 @@ void sinelon(CRGB c);
 void snowSparkle(int SparkleDelay, int SpeedDelay);
 void runningLights(CRGB c, int WaveDelay);
 void colorWipe(CRGB c, int SpeedDelay);
+void colorWipeReverse(CRGB c, int SpeedDelay);
 void rainbowCycle(int SpeedDelay);
 void theaterChase(CRGB c, int SpeedDelay);
 void theaterChaseRainbow(int SpeedDelay);

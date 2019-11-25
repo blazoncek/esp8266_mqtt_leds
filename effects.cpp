@@ -39,53 +39,38 @@ void FadeInOut(CRGB c){
 }
 
 //------------------------------------------------------//
-void Strobe(CRGB c, int Count, int FlashDelay) {
-  for ( int j=0; j<Count; j++ ) {
-    setAll(c);
-    showStrip();
-    delay(FlashDelay);
-    setAll(CRGB::Black);
-    showStrip();
-    delay(FlashDelay);
-  }
+void Strobe(CRGB c, int FlashDelay) {
+  setAll(c);
+  showStrip();
+  delay(FlashDelay/2);
+  setAll(CRGB::Black);
+  showStrip();
+  delay(FlashDelay/2);
 }
 
 //------------------------------------------------------//
-void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade, int Steps) {
+void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
   int i;
-  int segments = max(1, numLEDs / 50);
-  int ledspersegment = numLEDs / segments;
-  int StartPoint[segments];
-  int randomEyes = random(1,segments);
-
-  for ( int j=0; j<randomEyes; j++ ) {
-    StartPoint[j]  = random( 0, ledspersegment*(j+1) - (2*EyeWidth) - EyeSpace );
-  }
+  int StartPoint = random( 0, numLEDs - (2*EyeWidth) - EyeSpace );
+  int Start2ndEye = StartPoint + EyeWidth + EyeSpace;
 
   if ( Fade == true )
-    fadeToBlackBy(leds, numLEDs, 256/Steps);
+    fadeToBlackBy(leds, numLEDs, 196);
   else
     setAll(CRGB::Black); // Set all black
 
-  for ( int j=0; j<randomEyes; j++ ) {
-    int Start2ndEye = StartPoint[j] + EyeWidth + EyeSpace;
-    
-    // show eyes
-    for ( i=0; i<EyeWidth; i++ ) {
-      setPixel(StartPoint[j] + i, c);
-      setPixel(Start2ndEye + i, c);
-    }
-    showStrip();
-    delay(random(50,250));
+  // show eyes
+  for ( i=0; i<EyeWidth; i++ ) {
+    setPixel(StartPoint + i, c);
+    setPixel(Start2ndEye + i, c);
   }
+  showStrip();
   
-  for ( int j=0; j<randomEyes; j++ ) {
-    int Start2ndEye = StartPoint[j] + EyeWidth + EyeSpace;
-
+  if ( Fade != true ) {
     // blink
     delay(random(250,750));
     for ( i=0; i<EyeWidth; i++ ) {
-      setPixel(StartPoint[j] + i, CRGB::Black);
+      setPixel(StartPoint + i, CRGB::Black);
       setPixel(Start2ndEye + i, CRGB::Black);
     }
     showStrip();
@@ -93,11 +78,11 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade, int Steps) 
   
     // show eyes
     for(i = 0; i < EyeWidth; i++) {
-      setPixel(StartPoint[j] + i, c);
+      setPixel(StartPoint + i, c);
       setPixel(Start2ndEye + i, c);
     }
     showStrip();
-    delay(250);
+    delay(random(500,2500));
   }
 }
 
@@ -256,7 +241,7 @@ void RightToLeft(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 
 //------------------------------------------------------//
 void Twinkle(CRGB c, int SpeedDelay, boolean OnlyOne) {
-  fadeToBlackBy(leds, numLEDs, 25);  // 10% fade
+  fadeToBlackBy(leds, numLEDs, 32);  // 12.5% fade
   int pos = random(numLEDs-1);
   setPixel(pos,c);
   showStrip();
@@ -285,9 +270,9 @@ void sinelon(CRGB c)
 
 //------------------------------------------------------//
 void snowSparkle(int SparkleDelay, int SpeedDelay) {
-  CRGB c = CRGB(96,96,96);
+  CRGB c = CRGB(64,64,64);
   setAll(c);
-  addGlitter(80);
+  addGlitter(90);
   showStrip();
   delay(SparkleDelay);
   setAll(c);
@@ -315,6 +300,15 @@ void runningLights(CRGB c, int WaveDelay) {
 void colorWipe(CRGB c, int SpeedDelay) {
   for ( int i=0; i<numLEDs; i++ ) {
       setPixel(i, c);
+      showStrip();
+      delay(SpeedDelay);
+  }
+}
+
+//------------------------------------------------------//
+void colorWipeReverse(CRGB c, int SpeedDelay) {
+  for ( int i=numLEDs; i>0; i-- ) {
+      setPixel(i-1, c);
       showStrip();
       delay(SpeedDelay);
   }
@@ -490,7 +484,7 @@ void meteorRain(CRGB c, byte meteorSize, byte meteorTrailDecay, boolean meteorRa
 
   setAll(CRGB::Black);  // reset all pixels
   
-  for ( int i=0; i<numLEDs+2*meteorSize; i++ ) {
+  for ( int i=0; i<2*numLEDs; i++ ) {
 
     // fade brightness all LEDs one step
     for ( int j=0; j<numLEDs; j++ ) {
