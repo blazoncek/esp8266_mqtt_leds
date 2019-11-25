@@ -350,6 +350,7 @@ void loop() {
 
     case 1  : {
               FadeInOut(rRGB);
+              gHue += 7;
               break;
               }
               
@@ -401,23 +402,24 @@ void loop() {
               }
               
     case 11 : {
-              colorWipe(rRGB, 30);
-              colorWipeReverse(CRGB::Black, 30);
+              colorWipe(rRGB, 30/max(numLEDs/50,1));
+              colorWipeReverse(CRGB::Black, 30/max(numLEDs/50,1));
+              gHue += 7;
               break;
               }
 
     case 12 : {
-              rainbowCycle(50);
+              rainbowCycle(15);
               break;
               }
 
     case 13 : {
-              theaterChase(rRGB, 100);
+              theaterChase(rRGB, 150/max(numLEDs/50,1));
               break;
               }
 
     case 14 : {
-              theaterChaseRainbow(100);
+              theaterChaseRainbow(150/max(numLEDs/50,1));
               break;
               }
 

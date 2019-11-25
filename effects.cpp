@@ -330,20 +330,13 @@ void rainbowCycle(int SpeedDelay) {
 
 //------------------------------------------------------//
 void theaterChase(CRGB c, int SpeedDelay) {
-  for ( int j=0; j<10; j++ ) {  //do 10 cycles of chasing
-    for ( int q=0; q < 3; q++ ) {
-      for ( int i=0; i < numLEDs; i=i+3 ) {
-        setPixel(i+q, c);    //turn every third pixel on
-      }
-      showStrip();
-     
-      delay(SpeedDelay);
-     
-      for ( int i=0; i<numLEDs; i=i+3 ) {
-        setPixel(i+q, CRGB::Black);        //turn every third pixel off
-      }
-      showStrip();
+  for ( int q=0; q < 3; q++ ) {
+    setAll(CRGB::Black);
+    for ( int i=0; i<numLEDs; i=i+3 ) {
+      setPixel(i+q, c);        //turn every third pixel on
     }
+    showStrip();
+    delay(SpeedDelay);
   }
 }
 
@@ -351,20 +344,15 @@ void theaterChase(CRGB c, int SpeedDelay) {
 void theaterChaseRainbow(int SpeedDelay) {
   CRGB c;
   
-  for ( int j=0; j < 256; j++ ) {     // cycle all 256 colors in the wheel
+  for ( int j=0; j<256; j++ ) {     // cycle all 256 colors in the wheel
     for ( int q=0; q<3; q++ ) {
-        for ( int i=0; i<numLEDs; i=i+3 ) {
-          c = CHSV(((i * 256 / numLEDs) + j) & 255, 255, 255);
-          setPixel(i+q, c);    //turn every third pixel on
-        }
-        showStrip();
-       
-        delay(SpeedDelay);
-       
-        for ( int i=0; i<numLEDs; i=i+3 ) {
-          setPixel(i+q, CRGB::Black);        //turn every third pixel off
-        }
-        showStrip();
+      setAll(CRGB::Black);
+      for ( int i=0; i<numLEDs; i=i+3 ) {
+        c = CHSV(((i * 256 / numLEDs) + j) & 255, 255, 255);
+        setPixel(i+q, c);        //turn every third pixel on
+      }
+      showStrip();
+      delay(SpeedDelay);
     }
   }
 }
