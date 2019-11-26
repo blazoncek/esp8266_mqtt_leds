@@ -370,7 +370,8 @@ void loop() {
               }
               
     case 5  : {
-              NewKITT(rRGB, max((int)numLEDs/20,2), 60);
+              NewKITT(rRGB, max((int)numLEDs/20,2), 60-((numLEDs/50)-1)*15);
+              gHue += 7;
               break;
               }
               
@@ -425,7 +426,7 @@ void loop() {
 
     case 15 : {
               // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS)
-              Fire(55, 120, 30);
+              Fire(55, 120, 30, true, 99);
               break;
               }
 

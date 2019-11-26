@@ -29,7 +29,7 @@ void colorWipeReverse(CRGB c, int SpeedDelay);
 void rainbowCycle(int SpeedDelay);
 void theaterChase(CRGB c, int SpeedDelay);
 void theaterChaseRainbow(int SpeedDelay);
-void Fire(int Cooling, int Sparking, int SpeedDelay);
+void Fire(int Cooling, int Sparking, int SpeedDelay, boolean SplitOnLong=false, int SplitPoint=119);
 void bouncingColoredBalls(int BallCount, CRGB colors[]);
 void meteorRain(CRGB c, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
 

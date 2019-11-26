@@ -358,13 +358,21 @@ void theaterChaseRainbow(int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void Fire(int Cooling, int Sparking, int SpeedDelay) {
+void Fire(int Cooling, int Sparking, int SpeedDelay, boolean SplitOnLong, int SplitPoint) {
   //static byte heat[NUM_LEDS]; // moved to setup()
   int cooldown;
+  int nLeds;
+
+  // if we have a long LED strip make fire at both ends
+  if ( SplitOnLong == true && numLEDs > SplitPoint ) {
+    nLeds = numLEDs / 2;
+  } else {
+    nLeds = numLEDs;
+  }
   
   // Step 1.  Cool down every cell a little
   for ( int i=0; i<numLEDs; i++ ) {
-    cooldown = random(0, ((Cooling * 10) / numLEDs) + 2);
+    cooldown = random(0, ((Cooling * 10) / nLeds) + 2);
     
     if ( cooldown>heat[i] ) {
       heat[i]=0;
@@ -374,8 +382,14 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
   }
   
   // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-  for ( int k=numLEDs-1; k>=2; k-- ) {
+  for ( int k=nLeds-1; k>=2; k-- ) {
     heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
+    if ( k==2 )
+      heat[k-1] = heat[k - 2] / 2;
+    if ( SplitOnLong == true && numLEDs > SplitPoint ) {
+      int j = numLEDs - k - 1;
+      heat[j] = (heat[j+1] + heat[j+2] + heat[j+2]) / 3;
+    }
   }
     
   // Step 3.  Randomly ignite new 'sparks' near the bottom
@@ -383,6 +397,10 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
     int y = random(7);
     heat[y] = heat[y] + random(160,255);
     //heat[y] = random(160,255);
+    if ( SplitOnLong == true && numLEDs > SplitPoint ) {
+      y = random(7);
+      heat[numLEDs-y-1] = heat[numLEDs-y-1] + random(160,255);
+    }
   }
 
   // Step 4.  Convert heat to LED colors
