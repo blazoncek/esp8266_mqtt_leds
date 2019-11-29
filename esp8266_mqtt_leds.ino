@@ -74,7 +74,7 @@ void subtractInterval();
 //-----------------------------------------------------------
 // main setup
 void setup() {
-  char str[16];
+  char str[21];
 
   Serial.begin(115200);
   delay(5000);
@@ -98,15 +98,14 @@ void setup() {
   Serial.println("Starting WiFi manager");
   #endif
 
-  // request 16 bytes from EEPROM & write LED info
-  EEPROM.begin(16);
-//  EEPROM.get(0, str);
+  // request 20 bytes from EEPROM & write LED info
+  EEPROM.begin(20);
 
   #if DEBUG
   Serial.println("");
   Serial.print("EEPROM data: ");
   #endif
-  for ( int i=0; i<15; i++ ) {
+  for ( int i=0; i<20; i++ ) {
     str[i] = EEPROM.read(i);
     #if DEBUG
     Serial.print(str[i], HEX);
@@ -119,12 +118,9 @@ void setup() {
   Serial.println(")");
   #endif
 
-  EEPROM.commit();
-  EEPROM.end();
-  if ( strncmp(str,"WS",2) == 0 ) {
-    sscanf(str,"%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
+  if ( strncmp(str,"esp",3)==0 ) {
+    sscanf(str,"esp%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
   }
-  delay(120);
 
 //----------------------------------------------------------
   //clean FS, for testing
@@ -269,16 +265,17 @@ void setup() {
       #endif
     }
 
-    // request 16 bytes from EEPROM & write LED info
-    sprintf(str,"%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
-    EEPROM.begin(16);
+    // write LED info to EEPROM
+    sprintf(str,"esp%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
     EEPROM.put(0, str);
     EEPROM.commit();
-    EEPROM.end();
     delay(120);
 
   }
 //----------------------------------------------------------
+
+  // done with EEPROM
+  EEPROM.end();
 
   #if DEBUG
   Serial.print("LED type: ");
@@ -339,7 +336,7 @@ void loop() {
     case -1 : {
               fadeToBlackBy(leds, numLEDs, 128);  // 50% fade (6 steps)
               showStrip();
-              delay(500);
+              delay(250);
               break;
               }
     
@@ -393,18 +390,19 @@ void loop() {
                
     case 9  : {
               // SnowSparkle
-              snowSparkle(30, random(100,750));
+              snowSparkle(30, random(100,500));
               break;
               }
               
     case 10 : {
               runningLights(rRGB, 50);
+              gHue += 7;
               break;
               }
               
     case 11 : {
               colorWipe(rRGB, 30/max(numLEDs/50,1));
-              colorWipeReverse(CRGB::Black, 30/max(numLEDs/50,1));
+              //colorWipeReverse(CRGB::Black, 30/max(numLEDs/50,1));
               gHue += 7;
               break;
               }
@@ -433,6 +431,7 @@ void loop() {
     case 16 : {
               // simple bouncingBalls not included, since BouncingColoredBalls can perform this as well as shown below
               bouncingColoredBalls(1, &rRGB);
+              gHue += 7;
               break;
               }
 
@@ -458,10 +457,11 @@ void loop() {
 
 }
 
-// Apply LED color changes
+// Apply LED color changes & allow other tasks (MQTT callback, ...)
 void showStrip() {
   yield();    // allow other tasks
-  if ( client.connected() ) client.loop(); //check MQTT
+  if ( client.connected() )
+    client.loop(); //check MQTT
   
   // FastLED
   FastLED.show();
@@ -547,19 +547,40 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       #endif
       return;
   
-    } else if ( strstr(topic,"/command/reset") ) {
-      
-      ESP.reset();
+    } else if ( strstr(topic,"/command/restart") ) {
   
+      // restart ESP
+      ESP.reset();
+      delay(1000);
+      
+    } else if ( strstr(topic,"/command/reset") ) {
+  
+      // erase 20 bytes from EEPROM
+      EEPROM.begin(20);
+      for ( int i=0; i<20; i++ ) {
+        EEPROM.write(i, '\0');
+      }
+      EEPROM.commit();
+      EEPROM.end();
+      delay(120);  // wait for write to complete
+  
+      // clean FS
+      SPIFFS.format();
+  
+      // clear WiFi data & disconnect
+      WiFi.disconnect();
+  
+      // restart ESP
+      ESP.reset();
+      delay(1000);
+      
     }
 
     // request 16 bytes from EEPROM & write LED info
-    sprintf(tmp,"%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
+    sprintf(tmp, "esp%6s%3s%3s", c_LEDtype, c_numLEDs, c_idx);
     Serial.println(tmp);
-    EEPROM.begin(16);
-    for ( int i=0; i<13; i++ ) {
-      EEPROM.write(i, tmp[i]);
-    }
+    EEPROM.begin(20);
+    EEPROM.put(0, tmp);
     EEPROM.commit();
     EEPROM.end();
     delay(120);
