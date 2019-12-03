@@ -287,7 +287,7 @@ void bpm(int Hue, int SpeedDelay) {
 // borrowed from FastLED's DemoReel
 void juggle(int SpeedDelay) {
   // eight colored dots, weaving in and out of sync with each other
-  fadeToBlackBy(leds, numLEDs, 20);
+  fadeToBlackBy(leds, numLEDs, 64);
   byte dothue = 0;
   for ( int i=0; i<8; i++ ) {
     leds[beatsin16(i+7, 0, numLEDs-1)] |= CHSV(dothue, 200, 255);
@@ -352,7 +352,7 @@ void rainbowCycle(int Hue, int SpeedDelay) {
   CRGB c;
 
   // depend on caller to do the hue shift
-//  for ( int j=0; j<256; j++ ) { // cycle of all colors on wheel
+//  for ( int Hue=0; Hue<256; Hue++ ) { // cycle of all colors on wheel
     for ( int i=0; i<numLEDs; i++ ) {
       c = CHSV(((i * 256 / numLEDs) + Hue) & 255, 255, 255);
       setPixel(i, c);
@@ -379,7 +379,7 @@ void theaterChaseRainbow(int Hue, int SpeedDelay) {
   CRGB c;
 
   //depend on calller to do the hue shift
-//  for ( int j=0; j<256; j++ ) {     // cycle all 256 colors in the wheel
+//  for ( int Hue=0; Hue<256; Hue++ ) {     // cycle all 256 colors in the wheel
     for ( int q=0; q<3; q++ ) {
       setAll(CRGB::Black);
       for ( int i=0; i<numLEDs; i=i+3 ) {

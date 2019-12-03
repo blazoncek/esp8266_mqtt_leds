@@ -38,6 +38,13 @@ int numLEDs = 1;
 
 int selectedEffect = -1;
 int gHue = 0;
+// Effect's speed should be between 30 FPS and 60 FPS, depending on length (density) of LED strip
+// <51 pixels -> 30 FPS
+// 51-100 pixels -> 45 FPS
+// 101-150 pixels -> 60 FPS
+// 151-200 pixels -> 75FPS
+// ...
+int varDelay;  // 1000ms / FPS
 
 // Update these with values suitable for your network.
 char mqtt_server[40] = "192.168.70.11";
@@ -120,6 +127,9 @@ void setup() {
 
   if ( strncmp(str,"esp",3)==0 ) {
     sscanf(str,"esp%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
+  } else if ( strncmp(str,"WS2",3)==0 ) {
+    // backwards compatible
+    sscanf(str,"%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
   }
 
 //----------------------------------------------------------
@@ -277,6 +287,8 @@ void setup() {
   // done with EEPROM
   EEPROM.end();
 
+  varDelay = 1000/(((ceil(numLEDs/50.0))+1)*15);  // 1000ms / FPS
+
   #if DEBUG
   Serial.print("LED type: ");
   Serial.println(c_LEDtype);
@@ -284,6 +296,8 @@ void setup() {
   Serial.println(c_numLEDs);
   Serial.print("idx: ");
   Serial.println(c_idx);
+  Serial.print("Delay: ");
+  Serial.println(varDelay,DEC);
   #endif
 
   #if !DEBUG
@@ -294,6 +308,7 @@ void setup() {
   // allocate memory for LED array and initialize FastLED library
   //leds = new CRGB[numLEDs];
   leds = (CRGB*)calloc(numLEDs, sizeof(CRGB));
+  
   if ( strcmp(c_LEDtype,"WS2801")==0 ) {
     FastLED.addLeds<WS2801, DATA_PIN, CLOCK_PIN, RGB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
   } else if ( strcmp(c_LEDtype,"WS2811")==0 ) {
@@ -302,6 +317,7 @@ void setup() {
     FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
   } else {
   }
+  
   heat = (byte*)calloc(numLEDs, sizeof(byte));  // Fire effect static data buffer
 
   randomSeed(millis());
@@ -317,13 +333,6 @@ void setup() {
 
 void loop() {
   CRGB rRGB;
-  // Effect's speed should be between 30 FPS and 60 FPS, depending on length (density) of LED strip
-  // <51 pixels -> 30 FPS
-  // 51-100 pixels -> 45 FPS
-  // 101-150 pixels -> 60 FPS
-  // 151-200 pixels -> 75FPS
-  // ...
-  int varDelay = 1000/((ceil(numLEDs/50.0))+1)*15;  // 1000ms / FPS
   
   if (!client.connected()) {
     mqtt_reconnect();
@@ -333,13 +342,6 @@ void loop() {
   rRGB = CHSV(gHue++,255,255);
   if ( gHue > 255 ) gHue = 0;
    
-  #if DEBUG
-  Serial.print("Color: ");
-  Serial.print(rRGB.r,HEX);
-  Serial.print(rRGB.g,HEX);
-  Serial.println(rRGB.b,HEX);
-  #endif
-
   switch ( selectedEffect ) {
 
     case -1 : {
@@ -418,23 +420,24 @@ void loop() {
               }
 
     case 12 : {
-              rainbowCycle(gHue, 10);
+              rainbowCycle(gHue, varDelay/2);
               break;
               }
 
     case 13 : {
-              theaterChase(rRGB, varDelay);
+              theaterChase(rRGB, varDelay*3);
               break;
               }
 
     case 14 : {
-              theaterChaseRainbow(gHue, varDelay);
+              theaterChaseRainbow(gHue, varDelay*3);
+              gHue += 3;
               break;
               }
 
     case 15 : {
               // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS)
-              Fire(55, 120, 30, true, 30);
+              Fire(55, 120, 30, true, varDelay*2);
               break;
               }
 
@@ -542,6 +545,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       Serial.println(numLEDs, DEC);
       #endif
       
+      varDelay = 1000/(((ceil(numLEDs/50.0))+1)*15);  // 1000ms / FPS
+      
     } else if ( strstr(topic,"/command/idx") ) {
       
       sprintf(c_idx,"%d",max(min((int)newPayload.toInt(),999),1));
@@ -560,7 +565,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   
     } else if ( strstr(topic,"/command/effect") ) {
       
-      selectedEffect = max(min((int)newPayload.toInt(),19),-1);
+      selectedEffect = max(min((int)newPayload.toInt(),21),-1);
       #if DEBUG
       Serial.print("New effect: ");
       Serial.println(selectedEffect, DEC);
@@ -641,7 +646,7 @@ void mqtt_reconnect() {
       client.subscribe(tmp);
       client.subscribe("domoticz/out");
       #if DEBUG
-      Serial.println("Connected & subscribed.");
+      Serial.println("\r\nConnected & subscribed.");
       #endif
     } else {
       #if DEBUG
