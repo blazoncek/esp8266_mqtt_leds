@@ -259,18 +259,48 @@ void TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne) {
 }
 
 //------------------------------------------------------//
-void sinelon(CRGB c)
-{
+// borrowed from FastLED's DemoReel
+void sinelon(CRGB c, int SpeedDelay) {
   // a colored dot sweeping back and forth, with fading trails
   fadeToBlackBy(leds, numLEDs, 20);
   int pos = beatsin16(13, 0, numLEDs-1);
   leds[pos] = c;
   showStrip();
+  delay(SpeedDelay);
 }
 
 //------------------------------------------------------//
+// borrowed from FastLED's DemoReel
+void bpm(int Hue, int SpeedDelay) {
+  // colored stripes pulsing at a defined Beats-Per-Minute (BPM)
+  uint8_t BeatsPerMinute = 62;
+  CRGBPalette16 palette = PartyColors_p;
+  uint8_t beat = beatsin8(BeatsPerMinute, 64, 255);
+  for ( int i=0; i<numLEDs; i++ ) { //9948
+    leds[i] = ColorFromPalette(palette, Hue+(i*2), beat-Hue+(i*10));
+  }
+  showStrip();
+  delay(SpeedDelay);
+}
+
+//------------------------------------------------------//
+// borrowed from FastLED's DemoReel
+void juggle(int SpeedDelay) {
+  // eight colored dots, weaving in and out of sync with each other
+  fadeToBlackBy(leds, numLEDs, 20);
+  byte dothue = 0;
+  for ( int i=0; i<8; i++ ) {
+    leds[beatsin16(i+7, 0, numLEDs-1)] |= CHSV(dothue, 200, 255);
+    dothue += 32;
+  }
+  showStrip();
+  delay(SpeedDelay);
+}
+
+
+//------------------------------------------------------//
 void snowSparkle(int SparkleDelay, int SpeedDelay) {
-  CRGB c = CRGB(64,64,64);
+  CRGB c = CRGB(32,32,32);
   setAll(c);
   addGlitter(90);
   showStrip();
@@ -282,18 +312,21 @@ void snowSparkle(int SparkleDelay, int SpeedDelay) {
 
 //------------------------------------------------------//
 void runningLights(CRGB c, int WaveDelay) {
-  int Position=0;
+  static int Position=0;
   
-  for ( int j=0; j<numLEDs*2; j++ ) {
-    Position++; // = 0; //Position + Rate;
+//  for ( int j=0; j<numLEDs*2; j++ ) {
+//    Position++; // = 0; //Position + Rate;
     for ( int i=0; i<numLEDs; i++ ) {
       // sine wave, 3 offset waves make a rainbow!
       float level = (sin(i+Position) * 127 + 128) / 255;
       setPixel(i,CRGB(level*c.r,level*c.g,level*c.b));
     }
     showStrip();
+    if ( Position++ == numLEDs ) {
+      Position = 0;
+    }
     delay(WaveDelay);
-  }
+//  }
 }
 
 //------------------------------------------------------//
@@ -315,17 +348,18 @@ void colorWipeReverse(CRGB c, int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void rainbowCycle(int SpeedDelay) {
+void rainbowCycle(int Hue, int SpeedDelay) {
   CRGB c;
 
-  for ( int j=0; j<256; j++ ) { // cycle of all colors on wheel
+  // depend on caller to do the hue shift
+//  for ( int j=0; j<256; j++ ) { // cycle of all colors on wheel
     for ( int i=0; i<numLEDs; i++ ) {
-      c = CHSV(((i * 256 / numLEDs) + j) & 255, 255, 255);
+      c = CHSV(((i * 256 / numLEDs) + Hue) & 255, 255, 255);
       setPixel(i, c);
     }
     showStrip();
     delay(SpeedDelay);
-  }
+//  }
 }
 
 //------------------------------------------------------//
@@ -341,20 +375,21 @@ void theaterChase(CRGB c, int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void theaterChaseRainbow(int SpeedDelay) {
+void theaterChaseRainbow(int Hue, int SpeedDelay) {
   CRGB c;
-  
-  for ( int j=0; j<256; j++ ) {     // cycle all 256 colors in the wheel
+
+  //depend on calller to do the hue shift
+//  for ( int j=0; j<256; j++ ) {     // cycle all 256 colors in the wheel
     for ( int q=0; q<3; q++ ) {
       setAll(CRGB::Black);
       for ( int i=0; i<numLEDs; i=i+3 ) {
-        c = CHSV(((i * 256 / numLEDs) + j) & 255, 255, 255);
+        c = CHSV(((i * 256 / numLEDs) + Hue) & 255, 255, 255);
         setPixel(i+q, c);        //turn every third pixel on
       }
       showStrip();
       delay(SpeedDelay);
     }
-  }
+//  }
 }
 
 //------------------------------------------------------//

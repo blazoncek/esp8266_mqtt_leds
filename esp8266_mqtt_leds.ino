@@ -68,8 +68,6 @@ void mqtt_callback(char*, byte*, unsigned int);
 void mqtt_reconnect();
 char *ftoa(float,char*,int d=2);
 void saveConfigCallback();
-void ledTimer();
-void subtractInterval();
 
 //-----------------------------------------------------------
 // main setup
@@ -77,11 +75,13 @@ void setup() {
   char str[21];
 
   Serial.begin(115200);
-  delay(5000);
+  delay(3000);
 
+  #if !DEBUG
   // Initialize the BUILTIN_LED pin as an output & set initial state LED on
   pinMode(BUILTIN_LED, OUTPUT);
   digitalWrite(BUILTIN_LED, LOW);
+  #endif
 
   String WiFiMAC = WiFi.macAddress();
   WiFiMAC.replace(":","");
@@ -286,8 +286,10 @@ void setup() {
   Serial.println(c_idx);
   #endif
 
+  #if !DEBUG
   // if connected set state LED off
   digitalWrite(BUILTIN_LED, HIGH);
+  #endif
 
   // allocate memory for LED array and initialize FastLED library
   //leds = new CRGB[numLEDs];
@@ -303,7 +305,7 @@ void setup() {
   heat = (byte*)calloc(numLEDs, sizeof(byte));  // Fire effect static data buffer
 
   randomSeed(millis());
-  //selectedEffect = random(0,18);
+  //selectedEffect = random(0,19);
 
   // initialize MQTT connection & provide callback function
   sprintf(outTopic, "%s/%s", MQTTBASE, clientId);
@@ -315,6 +317,13 @@ void setup() {
 
 void loop() {
   CRGB rRGB;
+  // Effect's speed should be between 30 FPS and 60 FPS, depending on length (density) of LED strip
+  // <51 pixels -> 30 FPS
+  // 51-100 pixels -> 45 FPS
+  // 101-150 pixels -> 60 FPS
+  // 151-200 pixels -> 75FPS
+  // ...
+  int varDelay = 1000/((ceil(numLEDs/50.0))+1)*15;  // 1000ms / FPS
   
   if (!client.connected()) {
     mqtt_reconnect();
@@ -334,9 +343,9 @@ void loop() {
   switch ( selectedEffect ) {
 
     case -1 : {
-              fadeToBlackBy(leds, numLEDs, 128);  // 50% fade (6 steps)
+              fadeToBlackBy(leds, numLEDs, 32);
               showStrip();
-              delay(250);
+              delay(100);
               break;
               }
     
@@ -362,12 +371,12 @@ void loop() {
               }
               
     case 4  : {
-              CylonBounce(max(numLEDs/20,4), 50);
+              CylonBounce(max(numLEDs/20,4), varDelay);
               break;
               }
               
     case 5  : {
-              NewKITT(rRGB, max((int)numLEDs/20,2), 60-((numLEDs/50)-1)*15);
+              NewKITT(rRGB, max((int)numLEDs/20,2), varDelay);
               gHue += 7;
               break;
               }
@@ -401,30 +410,31 @@ void loop() {
               }
               
     case 11 : {
-              colorWipe(rRGB, 30/max(numLEDs/50,1));
-              //colorWipeReverse(CRGB::Black, 30/max(numLEDs/50,1));
+              colorWipe(rRGB, varDelay);
+              colorWipe(CRGB::Black, varDelay);
+              //colorWipeReverse(CRGB::Black, varDelay);
               gHue += 7;
               break;
               }
 
     case 12 : {
-              rainbowCycle(15);
+              rainbowCycle(gHue, 10);
               break;
               }
 
     case 13 : {
-              theaterChase(rRGB, 150/max(numLEDs/50,1));
+              theaterChase(rRGB, varDelay);
               break;
               }
 
     case 14 : {
-              theaterChaseRainbow(150/max(numLEDs/50,1));
+              theaterChaseRainbow(gHue, varDelay);
               break;
               }
 
     case 15 : {
               // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS)
-              Fire(55, 120, 30, true, 99);
+              Fire(55, 120, 30, true, 30);
               break;
               }
 
@@ -452,8 +462,18 @@ void loop() {
               break;
               }
 
+    case 20 : {
+              bpm(gHue);
+              break;
+              }
+
+    case 21 : {
+              juggle();
+              break;
+              }
+
   }
-  if ( selectedEffect > 19 ) selectedEffect = 0;
+  if ( selectedEffect > 21 ) selectedEffect = 0;
 
 }
 
@@ -572,7 +592,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   
       // restart ESP
       ESP.reset();
-      delay(1000);
+      delay(3000);
       
     }
 
@@ -640,8 +660,7 @@ void mqtt_reconnect() {
 void reverse(char *str, int len) 
 { 
     int i=0, j=len-1, temp; 
-    while (i<j) 
-    { 
+    while (i<j) {
         temp = str[i]; 
         str[i] = str[j]; 
         str[j] = temp; 
@@ -655,11 +674,10 @@ void reverse(char *str, int len)
 int intToStr(int x, char *str, int d) 
 { 
     int i = 0, s = x<0;
-    while (x) 
-    { 
-      str[i++] = (abs(x)%10) + '0'; 
-      x = x/10; 
-    } 
+    while (x) {
+      str[i++] = (abs(x)%10) + '0';
+      x = x/10;
+    }
   
     // If number of digits required is more, then 
     // add 0s at the beginning 
