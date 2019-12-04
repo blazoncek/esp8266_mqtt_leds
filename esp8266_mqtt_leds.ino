@@ -28,9 +28,9 @@
 #define DEBUG   1
 
 // Data pin that led data will be written out over
-#define DATA_PIN D2   // use GPIO2 on ESP01
+#define DATA_PIN 2   // use GPIO2 on ESP01
 // Clock pin only needed for SPI based chipsets when not using hardware SPI
-#define CLOCK_PIN D1  // use GPIO0 on ESP01
+#define CLOCK_PIN 0  // use GPIO0 on ESP01
 
 // This is an array of leds.  One item for each led in your strip.
 CRGB *leds = NULL;
@@ -277,9 +277,11 @@ void setup() {
 
     // write LED info to EEPROM
     sprintf(str,"esp%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
-    EEPROM.put(0, str);
+    for ( int i=0; i<strlen(str); i++ ) {
+      EEPROM.write(i, str[i]);
+    }
     EEPROM.commit();
-    delay(120);
+    delay(250);
 
   }
 //----------------------------------------------------------
@@ -425,12 +427,12 @@ void loop() {
               }
 
     case 13 : {
-              theaterChase(rRGB, varDelay*3);
+              theaterChase(rRGB, 200);
               break;
               }
 
     case 14 : {
-              theaterChaseRainbow(gHue, varDelay*3);
+              theaterChaseRainbow(gHue, 200);
               gHue += 3;
               break;
               }
@@ -494,6 +496,7 @@ void showStrip() {
 // MQTT callback function
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   char tmp[80];
+  boolean lRestart = false;
   
   payload[length] = '\0'; // "just in case" fix
 /*
@@ -537,7 +540,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   } else if ( strstr(topic, MQTTBASE) ) {
     
     if ( strstr(topic,"/command/leds") ) {
-      
+
+      lRestart = true;
       numLEDs = max(min((int)newPayload.toInt(),999),1);
       sprintf(c_numLEDs,"%d",numLEDs);
       #if DEBUG
@@ -556,7 +560,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       #endif
   
     } else if ( strstr(topic,"/command/ledtype") ) {
-      
+
+      lRestart = true;
       newPayload.toCharArray(c_LEDtype,7);
       #if DEBUG
       Serial.print("New LED type: ");
@@ -573,13 +578,13 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       return;
   
     } else if ( strstr(topic,"/command/restart") ) {
-  
-      // restart ESP
-      ESP.reset();
-      delay(1000);
+
+      lRestart = true;
       
     } else if ( strstr(topic,"/command/reset") ) {
-  
+
+      lRestart = true;
+      
       // erase 20 bytes from EEPROM
       EEPROM.begin(20);
       for ( int i=0; i<20; i++ ) {
@@ -587,29 +592,39 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       }
       EEPROM.commit();
       EEPROM.end();
-      delay(120);  // wait for write to complete
+      delay(250);  // wait for write to complete
   
       // clean FS
       SPIFFS.format();
   
       // clear WiFi data & disconnect
       WiFi.disconnect();
-  
-      // restart ESP
-      ESP.reset();
-      delay(3000);
       
+    } else {
+      return;
     }
 
     // request 16 bytes from EEPROM & write LED info
     sprintf(tmp, "esp%6s%3s%3s", c_LEDtype, c_numLEDs, c_idx);
+    #if DEBUG
     Serial.println(tmp);
+    #endif
     EEPROM.begin(20);
-    EEPROM.put(0, tmp);
+    for ( int i=0; i<strlen(tmp); i++ ) {
+      EEPROM.write(i, tmp[i]);
+    }
     EEPROM.commit();
     EEPROM.end();
-    delay(120);
-    
+    delay(1000);
+    #if DEBUG
+    Serial.println("Written to EEPROM.");
+    #endif
+
+    if ( lRestart ) {
+      // restart ESP
+      ESP.reset();
+      delay(2000);
+    }
   }
 }
 
@@ -620,15 +635,18 @@ void mqtt_reconnect() {
 
   #if DEBUG
   Serial.print("Reconnecting.");
-  #endif
-
+  #else
   digitalWrite(BUILTIN_LED, LOW); // LED on
+  #endif
 
   // Loop until we're reconnected
   while ( !client.connected() ) {
     // Attempt to connect
     if ( strlen(username)==0? client.connect(clientId): client.connect(clientId, username, password) ) {
       
+      #if !DEBUG
+      digitalWrite(BUILTIN_LED, HIGH); // LED off
+      #endif
       // Once connected, publish an announcement...
       DynamicJsonDocument doc(256);
       doc["mac"] = WiFi.macAddress(); //.toString().c_str();
