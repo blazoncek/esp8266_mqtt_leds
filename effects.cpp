@@ -343,25 +343,29 @@ void colorWipe(CRGB c, boolean Reverse, int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void colorChase(CRGB c1, CRGB c2, int Size, boolean Reverse, int SpeedDelay) {
+void colorChase(CRGB c[], int Size, boolean Reverse, int SpeedDelay) {
   int window = 3*Size;
   int pos;
   
   // move by 1 pixel within window
   for ( int q=0; q<window; q++ ) {
-    setAll(CRGB::Black);
-    for ( int i=0; i<numLEDs-window; i+=window ) {
+    setAll(c[2]);
+    for ( int i=0; i<numLEDs; i+=window ) {
       // turn LEDs on: ..++++####....++++####..   (size=4, . = black, + = c1, # = c2)
       // turn LEDs on: ..####++++....####++++..   (size=4, . = black, + = c1, # = c2, Reverse)
       for ( int j=0; j<Size; j++ ) {
         if ( Reverse ) {
-          pos = (window-q-1) + i + j;
-          setPixel(pos+Size, c1);
-          setPixel(pos, c2);
+          pos = (window-q-1) + (Size-j-1);
+          if ( (pos+Size)%window + i < numLEDs )
+            setPixel((pos+Size)%window + i, c[0]);
+          if ( pos%window + i < numLEDs )
+            setPixel(pos%window + i, c[1]);
         } else {
-          pos = q + i + j;
-          setPixel(pos, c1);
-          setPixel(pos+Size, c2);
+          pos = q + j;
+          if ( pos%window + i < numLEDs )
+            setPixel(pos%window + i, c[0]);
+          if ( (pos+Size)%window + i < numLEDs )
+            setPixel((pos+Size)%window + i, c[1]);
         }
       }
     }
@@ -372,28 +376,8 @@ void colorChase(CRGB c1, CRGB c2, int Size, boolean Reverse, int SpeedDelay) {
 
 //------------------------------------------------------//
 void christmasChase(int Size, boolean Reverse, int SpeedDelay) {
-  int window = 3*Size;
-  int pos;
-  
-  // move by 1 pixel within window
-  for ( int q=0; q<window; q++ ) {
-    setAll(CRGB::White);
-    for ( int i=0; i<numLEDs-window; i+=window ) {
-      for ( int j=0; j<Size; j++ ) {
-        if ( Reverse ) {
-          pos = (window-q-1) + i + j;
-          setPixel(pos+Size, CRGB::Red);
-          setPixel(pos, CRGB::Green);
-        } else {
-          pos = q + i + j;
-          setPixel(pos, CRGB::Red);
-          setPixel(pos+Size, CRGB::Green);
-        }
-      }
-    }
-    showStrip();
-    delay(SpeedDelay/Size);
-  }
+  CRGB c[3] = {CRGB::Red, CRGB::Green, CRGB::White};
+  colorChase(c, Size, Reverse, SpeedDelay);
 }
 
 //------------------------------------------------------//

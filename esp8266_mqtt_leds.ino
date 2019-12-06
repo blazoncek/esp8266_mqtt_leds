@@ -478,7 +478,8 @@ void loop() {
               }
 
     case 22 : {
-              colorChase(rRGB, CHSV((gHue+128)&255,255,255), 4);
+              CRGB colors[3] = { rRGB, CHSV((gHue+128)&255,255,255), CRGB::Black };
+              colorChase(colors, 4, true);
               break;
               }
 
