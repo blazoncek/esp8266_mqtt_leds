@@ -277,7 +277,7 @@ void setup() {
 
     // write LED info to EEPROM
     sprintf(str,"esp%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
-    for ( int i=0; i<strlen(str); i++ ) {
+    for ( int i=0; i<=strlen(str); i++ ) { // write terminating '\0' too
       EEPROM.write(i, str[i]);
     }
     EEPROM.commit();
@@ -314,7 +314,7 @@ void setup() {
   if ( strcmp(c_LEDtype,"WS2801")==0 ) {
     FastLED.addLeds<WS2801, DATA_PIN, CLOCK_PIN, RGB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
   } else if ( strcmp(c_LEDtype,"WS2811")==0 ) {
-    FastLED.addLeds<WS2811, DATA_PIN, GRB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
+    FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
   } else if ( strcmp(c_LEDtype,"WS2812")==0 ) {
     FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
   } else {
@@ -621,7 +621,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     Serial.println(tmp);
     #endif
     EEPROM.begin(20);
-    for ( int i=0; i<strlen(tmp); i++ ) {
+    for ( int i=0; i<=strlen(tmp); i++ ) {  // write terminating '\0' too
       EEPROM.write(i, tmp[i]);
     }
     EEPROM.commit();
