@@ -414,9 +414,9 @@ void loop() {
               }
               
     case 11 : {
-              colorWipe(rRGB, varDelay);
-              colorWipe(CRGB::Black, varDelay);
-              //colorWipeReverse(CRGB::Black, varDelay);
+              colorWipe(rRGB, false, varDelay);
+              colorWipe(CRGB::Black, false, varDelay);
+              //colorWipe(CRGB::Black, true, varDelay); // reverse
               gHue += 7;
               break;
               }
@@ -477,8 +477,18 @@ void loop() {
               break;
               }
 
+    case 22 : {
+              colorChase(rRGB, CHSV((gHue+128)&255,255,255), 4);
+              break;
+              }
+
+    case 23 : {
+              christmasChase(4);
+              break;
+              }
+
   }
-  if ( selectedEffect > 21 ) selectedEffect = 0;
+  if ( selectedEffect > 23 ) selectedEffect = 0;
 
 }
 
@@ -570,7 +580,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   
     } else if ( strstr(topic,"/command/effect") ) {
       
-      selectedEffect = max(min((int)newPayload.toInt(),21),-1);
+      selectedEffect = max(min((int)newPayload.toInt(),23),-1);
       #if DEBUG
       Serial.print("New effect: ");
       Serial.println(selectedEffect, DEC);
