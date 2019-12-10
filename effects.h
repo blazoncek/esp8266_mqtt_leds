@@ -2,6 +2,7 @@
 extern CRGB *leds;
 extern int numLEDs;
 
+extern boolean breakEffect;
 // Fire effect static data (byte[numLEDs]) allocated at init
 extern byte *heat;
 

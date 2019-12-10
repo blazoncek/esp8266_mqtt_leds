@@ -1,7 +1,7 @@
 #include "FastLED.h"
 #include "effects.h"
 
-
+boolean breakEffect = false;
 byte *heat = NULL; // Fire effect static data
 
 
@@ -21,6 +21,7 @@ void FadeInOut(CRGB c){
   float r, g, b;
 
   for ( int k=0; k<256; k++ ) { 
+    if ( breakEffect ) return;
     r = (k/256.0)*c.red;
     g = (k/256.0)*c.green;
     b = (k/256.0)*c.blue;
@@ -30,6 +31,7 @@ void FadeInOut(CRGB c){
   delay(5);
      
   for ( int k=255; k>=0; k--) {
+    if ( breakEffect ) return;
     r = (k/256.0)*c.red;
     g = (k/256.0)*c.green;
     b = (k/256.0)*c.blue;
@@ -136,6 +138,7 @@ void CenterToOutside(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 
   setAll(CRGB::Black);
   for ( int i =((numLEDs-EyeSize)/2); i>=0; i-- ) {
+    if ( breakEffect ) return;
 
     if ( Fade==true ) {
       // fade brightness of all LEDs in one step by 25%
@@ -166,6 +169,7 @@ void OutsideToCenter(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 
   setAll(CRGB::Black);
   for ( int i = 0; i<=((numLEDs-EyeSize)/2); i++ ) {
+    if ( breakEffect ) return;
 
     if ( Fade==true ) {
       // fade brightness of all LEDs in one step by 25%
@@ -196,6 +200,7 @@ void LeftToRight(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 
   setAll(CRGB::Black);
   for ( int i=0; i < numLEDs-EyeSize-2; i++ ) {
+    if ( breakEffect ) return;
 
     if ( Fade==true ) {
       // fade brightness of all LEDs in one step by 25%
@@ -220,6 +225,7 @@ void RightToLeft(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 
   setAll(CRGB::Black);
   for ( int i=numLEDs-EyeSize-2; i>0; i-- ) {
+    if ( breakEffect ) return;
 
     if ( Fade==true ) {
       // fade brightness of all LEDs in one step by 25%
@@ -332,6 +338,7 @@ void runningLights(CRGB c, int WaveDelay) {
 //------------------------------------------------------//
 void colorWipe(CRGB c, boolean Reverse, int SpeedDelay) {
   for ( int i=0; i<numLEDs; i++ ) {
+    if ( breakEffect ) return;
     if ( Reverse ) {
       setPixel(numLEDs-i-1, c);
     } else {
@@ -524,6 +531,7 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
   }
 
   while ( ballsStillBouncing ) {
+    if ( breakEffect ) return;
     for ( int i=0; i<BallCount; i++ ) {
       TimeSinceLastBounce[i] =  millis() - ClockTimeSinceLastBounce[i];
       Height[i] = 0.5 * Gravity * pow( TimeSinceLastBounce[i]/1000 , 2.0 ) + ImpactVelocity[i] * TimeSinceLastBounce[i]/1000;
@@ -559,6 +567,7 @@ void meteorRain(CRGB c, byte meteorSize, byte meteorTrailDecay, boolean meteorRa
   setAll(CRGB::Black);  // reset all pixels
   
   for ( int i=0; i<2*numLEDs; i++ ) {
+    if ( breakEffect ) return;
 
     // fade brightness all LEDs one step
     for ( int j=0; j<numLEDs; j++ ) {

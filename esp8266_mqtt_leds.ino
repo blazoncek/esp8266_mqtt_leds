@@ -8,14 +8,17 @@
 
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 
-#include <ESP8266WiFi.h>
+#include <ESP8266WiFi.h>          // Base ESP8266 includes
+#include <ESP8266mDNS.h>          // multicast DNS
+#include <WiFiUdp.h>              // UDP handling
+#include <ArduinoOTA.h>           // OTA updates
 #include <EEPROM.h>
-#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
-#include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
-#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+#include <DNSServer.h>            // Local DNS Server used for redirecting all requests to the configuration portal
+#include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
+#include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
 #define MQTT_MAX_PACKET_SIZE 1024
-#include <PubSubClient.h>
+#include <PubSubClient.h>         // MQTT client
 
 #include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
 
@@ -94,7 +97,9 @@ void setup() {
   WiFiMAC.replace(":","");
   WiFiMAC.toCharArray(mac_address, 16);
   // Create client ID from MAC address
-  sprintf(clientId, "esp-%s", &mac_address[6]);
+  sprintf(clientId, "led-%s", &mac_address[6]);
+  WiFi.hostname(clientId);
+  WiFi.mode(WIFI_STA);
 
   #if DEBUG
   Serial.println("");
@@ -102,7 +107,6 @@ void setup() {
   Serial.println(WiFi.hostname());
   Serial.print("MAC address: ");
   Serial.println(mac_address);
-  Serial.println("Starting WiFi manager");
   #endif
 
   // request 20 bytes from EEPROM & write LED info
@@ -135,6 +139,10 @@ void setup() {
 //----------------------------------------------------------
   //clean FS, for testing
   //SPIFFS.format();
+
+  #if DEBUG
+  Serial.println("Starting WiFi manager");
+  #endif
 
   //read configuration from FS json
   if ( SPIFFS.begin() ) {
@@ -289,7 +297,45 @@ void setup() {
   // done with EEPROM
   EEPROM.end();
 
-  varDelay = 1000/(((ceil(numLEDs/50.0))+1)*15);  // 1000ms / FPS
+  // OTA update setup
+  //ArduinoOTA.setPort(8266);
+  ArduinoOTA.setHostname(clientId);
+  //ArduinoOTA.setPassword("ota_password");
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else { // U_FS
+      type = "filesystem";
+    }
+    #if DEBUG
+    Serial.println("Start updating " + type);
+    #endif
+  });
+  ArduinoOTA.onEnd([]() {
+    #if DEBUG
+    Serial.println("\nEnd");
+    #endif
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    #if DEBUG
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    #endif
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    #if DEBUG
+    Serial.printf("Error[%u]: ", error);
+    if      (error == OTA_AUTH_ERROR)    Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR)   Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR)     Serial.println("End Failed");
+    #endif
+  });
+  ArduinoOTA.begin();
+
+  // LED configuration set-up
+  varDelay = (int)(1000/(((ceil(numLEDs/100.0))+1)*15));  // 1000ms / FPS (prevent 0ms delay)
 
   #if DEBUG
   Serial.print("LED type: ");
@@ -335,85 +381,92 @@ void setup() {
 
 void loop() {
   CRGB rRGB;
-  
+
+  // handle OTA updates
+  ArduinoOTA.handle();
+
+  // handle MQTT reconnects
   if (!client.connected()) {
     mqtt_reconnect();
   }
+  // MQTT message processing
   client.loop();
 
+  // shift the hue a bit
   rRGB = CHSV(gHue++,255,255);
   if ( gHue > 255 ) gHue = 0;
-   
+
+  selectedEffect = max(min(selectedEffect,24),0); // sanity check
   switch ( selectedEffect ) {
 
-    case -1 : {
+    case 0 : {
               fadeToBlackBy(leds, numLEDs, 32);
               showStrip();
               delay(100);
               break;
               }
     
-    case 0  : {
+    case 1  : {
               RGBLoop();
               break;
               }
 
-    case 1  : {
+    case 2  : {
               FadeInOut(rRGB);
               gHue += 7;
               break;
               }
               
-    case 2  : {
+    case 3  : {
               Strobe(CRGB::White);
               break;
               }
 
-    case 3  : {
-              HalloweenEyes(CRGB::Red, 1, 1, false);
-              break;
-              }
-              
     case 4  : {
-              CylonBounce(max(numLEDs/20,4), varDelay);
+              HalloweenEyes(CRGB::Red, max((int)ceil(numLEDs/50.0),1), max((int)ceil(numLEDs/50.0),1), false);
               break;
               }
               
     case 5  : {
+              CylonBounce(max(numLEDs/20,4), varDelay);
+              break;
+              }
+              
+    case 6  : {
               NewKITT(rRGB, max((int)numLEDs/20,2), varDelay);
               gHue += 7;
               break;
               }
               
-    case 6  : {
+    case 7  : {
               Twinkle(rRGB, 250, false);
               break;
               }
               
-    case 7  : { 
+    case 8  : { 
               TwinkleRandom(10, 250, false);
               break;
               }
               
-    case 8  : {
+    case 9  : {
               // Sparkle
               Twinkle(CRGB::White, 250, true);
               break;
               }
                
-    case 9  : {
+    case 10 : {
               // SnowSparkle
-              snowSparkle(30, random(100,500));
+              snowSparkle(30, random(60,210));
               break;
               }
               
-    case 10 : {
+    case 11 : {
               runningLights(rRGB, 50);
               gHue += 7;
               break;
               }
               
-    case 11 : {
+    case 12 : {
               colorWipe(rRGB, false, varDelay);
               colorWipe(CRGB::Black, false, varDelay);
               //colorWipe(CRGB::Black, true, varDelay); // reverse
@@ -421,75 +474,75 @@ void loop() {
               break;
               }
 
-    case 12 : {
+    case 13 : {
               rainbowCycle(gHue, varDelay/2);
               break;
               }
 
-    case 13 : {
+    case 14 : {
               theaterChase(rRGB, 200);
               break;
               }
 
-    case 14 : {
+    case 15 : {
               theaterChaseRainbow(gHue, 200);
               gHue += 3;
               break;
               }
 
-    case 15 : {
+    case 16 : {
               // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS)
               Fire(55, 120, 30, true, varDelay*2);
               break;
               }
 
-    case 16 : {
+    case 17 : {
               // simple bouncingBalls not included, since BouncingColoredBalls can perform this as well as shown below
               bouncingColoredBalls(1, &rRGB);
               gHue += 7;
               break;
               }
 
-    case 17 : {
+    case 18 : {
               // multiple colored balls
               CRGB colors[3] = { CRGB::Red, CRGB::Green, CRGB::Blue };
               bouncingColoredBalls(3, colors);
               break;
               }
 
-    case 18 : {
+    case 19 : {
               meteorRain(CRGB::White, min((int)numLEDs/20,5), 128, true, 30);
               break;
               }
 
-    case 19 : {
+    case 20 : {
               sinelon(rRGB);
               break;
               }
 
-    case 20 : {
+    case 21 : {
               bpm(gHue);
               break;
               }
 
-    case 21 : {
+    case 22 : {
               juggle();
               break;
               }
 
-    case 22 : {
+    case 23 : {
               CRGB colors[3] = { rRGB, CHSV((gHue+128)&255,255,255), CRGB::Black };
               colorChase(colors, 4, true);
               break;
               }
 
-    case 23 : {
+    case 24 : {
               christmasChase(4);
               break;
               }
 
   }
-  if ( selectedEffect > 23 ) selectedEffect = 0;
+  breakEffect = false;
 
 }
 
@@ -535,7 +588,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       int actionId = action.toInt();
   
       // apply new effect
-      selectedEffect = (actionId/10)-1;
+      selectedEffect = (actionId/10);
+      breakEffect = true;
   
       // Publish effect state
       sprintf(tmp, "%s/effect", outTopic);
@@ -581,7 +635,9 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   
     } else if ( strstr(topic,"/command/effect") ) {
       
-      selectedEffect = max(min((int)newPayload.toInt(),23),-1);
+      selectedEffect = (int)newPayload.toInt();
+      breakEffect = true;
+      
       #if DEBUG
       Serial.print("New effect: ");
       Serial.println(selectedEffect, DEC);
@@ -668,7 +724,7 @@ void mqtt_reconnect() {
 
       size_t n = serializeJson(doc, msg);
       sprintf(tmp, "%s/announce", outTopic);
-      client.publish(tmp, msg);
+      client.publish(tmp, msg, true);  // retain the announcement
       
       // ... and resubscribe
       sprintf(tmp, "%s/%s/command/#", MQTTBASE, clientId);
