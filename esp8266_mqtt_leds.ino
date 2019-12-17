@@ -462,20 +462,19 @@ void loop() {
               
     case 11 : {
               runningLights(rRGB, 50);
-              gHue += 7;
               break;
               }
               
     case 12 : {
-              colorWipe(rRGB, false, varDelay);
-              colorWipe(CRGB::Black, false, varDelay);
+              colorWipe(rRGB, false, varDelay/2);
+              colorWipe(CRGB::Black, false, varDelay/2);
               //colorWipe(CRGB::Black, true, varDelay); // reverse
               gHue += 7;
               break;
               }
 
     case 13 : {
-              rainbowCycle(gHue, varDelay/2);
+              rainbowCycle(100);
               break;
               }
 
@@ -485,14 +484,13 @@ void loop() {
               }
 
     case 15 : {
-              theaterChaseRainbow(gHue, 200);
-              gHue += 3;
+              rainbowChase(200);
               break;
               }
 
     case 16 : {
-              // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS)
-              Fire(55, 120, 30, true, varDelay*2);
+              // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS), split on long strings, split point
+              Fire(55, 120, varDelay, true, 119);
               break;
               }
 

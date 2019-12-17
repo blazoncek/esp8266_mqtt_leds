@@ -306,7 +306,7 @@ void juggle(int SpeedDelay) {
 
 //------------------------------------------------------//
 void snowSparkle(int SparkleDelay, int SpeedDelay) {
-  CRGB c = CRGB(32,32,32);
+  CRGB c = CRGB(16,16,16);
   setAll(c);
   addGlitter(90);
   showStrip();
@@ -318,21 +318,18 @@ void snowSparkle(int SparkleDelay, int SpeedDelay) {
 
 //------------------------------------------------------//
 void runningLights(CRGB c, int WaveDelay) {
-  static int Position=0;
+  static int Position = 0;
   
-//  for ( int j=0; j<numLEDs*2; j++ ) {
-//    Position++; // = 0; //Position + Rate;
-    for ( int i=0; i<numLEDs; i++ ) {
-      // sine wave, 3 offset waves make a rainbow!
-      float level = (sin(i+Position) * 127 + 128) / 255;
-      setPixel(i,CRGB(level*c.r,level*c.g,level*c.b));
-    }
-    showStrip();
-    if ( Position++ == numLEDs ) {
-      Position = 0;
-    }
-    delay(WaveDelay);
-//  }
+  for ( int i=0; i<numLEDs; i++ ) {
+    // sine wave, 3 offset waves make a rainbow!
+    float level = (sin(i+Position) + 1) / 2;
+    setPixel(i,CRGB(level*c.r,level*c.g,level*c.b));
+  }
+  showStrip();
+  if ( Position++ >= numLEDs ) {
+    Position = 0;
+  }
+  delay(WaveDelay);
 }
 
 //------------------------------------------------------//
@@ -351,7 +348,7 @@ void colorWipe(CRGB c, boolean Reverse, int SpeedDelay) {
 
 //------------------------------------------------------//
 void colorChase(CRGB c[], int Size, boolean Reverse, int SpeedDelay) {
-  int window = 3*Size;
+  int window = 3*Size;  // c[] has 3 elements
   int pos;
   
   // move by 1 pixel within window
@@ -388,25 +385,22 @@ void christmasChase(int Size, boolean Reverse, int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void rainbowCycle(int Hue, int SpeedDelay) {
-  CRGB c;
-
-  // depend on caller to do the hue shift
-//  for ( int Hue=0; Hue<256; Hue++ ) { // cycle of all colors on wheel
-    for ( int i=0; i<numLEDs; i++ ) {
-      c = CHSV(((i * 256 / numLEDs) + Hue) & 255, 255, 255);
-      setPixel(i, c);
-    }
-    showStrip();
-    delay(SpeedDelay);
-//  }
+void theaterChase(CRGB cColor, int SpeedDelay) {
+  CRGB c[3] = {cColor, CRGB::Black, CRGB::Black};
+  colorChase(c, 1, false, SpeedDelay);
 }
 
 //------------------------------------------------------//
-void theaterChase(CRGB c, int SpeedDelay) {
-  for ( int q=0; q < 3; q++ ) {
+void rainbowChase(int SpeedDelay) {
+  static int Hue = 0;
+  CRGB c;
+
+  //each call shifts the hue a bit
+  ++Hue &= 0xFF;
+  for ( int q=0; q<3; q++ ) {
     setAll(CRGB::Black);
     for ( int i=0; i<numLEDs; i=i+3 ) {
+      c = CHSV(((i * 256 / numLEDs) + Hue) & 255, 255, 255);
       setPixel(i+q, c);        //turn every third pixel on
     }
     showStrip();
@@ -415,21 +409,18 @@ void theaterChase(CRGB c, int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void theaterChaseRainbow(int Hue, int SpeedDelay) {
+void rainbowCycle(int SpeedDelay) {
+  static int Hue = 0;
   CRGB c;
 
-  //depend on calller to do the hue shift
-//  for ( int Hue=0; Hue<256; Hue++ ) {     // cycle all 256 colors in the wheel
-    for ( int q=0; q<3; q++ ) {
-      setAll(CRGB::Black);
-      for ( int i=0; i<numLEDs; i=i+3 ) {
-        c = CHSV(((i * 256 / numLEDs) + Hue) & 255, 255, 255);
-        setPixel(i+q, c);        //turn every third pixel on
-      }
-      showStrip();
-      delay(SpeedDelay);
-    }
-//  }
+  //each call shifts the hue a bit
+  ++Hue &= 0xFF;
+  for ( int i=0; i<numLEDs; i++ ) {
+    c = CHSV(((i * 256 / numLEDs) + Hue) & 255, 255, 255);
+    setPixel(i, c);
+  }
+  showStrip();
+  delay(SpeedDelay);
 }
 
 //------------------------------------------------------//
@@ -564,9 +555,9 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
 //------------------------------------------------------//
 void meteorRain(CRGB c, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
 
-  setAll(CRGB::Black);  // reset all pixels
+//  setAll(CRGB::Black);  // reset all pixels
   
-  for ( int i=0; i<2*numLEDs; i++ ) {
+  for ( int i=0; i<numLEDs+2*meteorSize; i++ ) {
     if ( breakEffect ) return;
 
     // fade brightness all LEDs one step
