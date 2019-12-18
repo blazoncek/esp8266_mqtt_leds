@@ -6,6 +6,8 @@
  (c) blaz@kristan-sp.si / 2019-11-16
 */
 
+// global includes (libraries)
+
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 
 #include <ESP8266WiFi.h>          // Base ESP8266 includes
@@ -26,18 +28,43 @@
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #include "FastLED.h"
 
+
+// local includes
+
 #include "effects.h"
 
 #define DEBUG   1
 
-// Data pin that led data will be written out over
-#define DATA_PIN 2   // use GPIO2 on ESP01
-// Clock pin only needed for SPI based chipsets when not using hardware SPI
-#define CLOCK_PIN 0  // use GPIO0 on ESP01
+int numZones = 0;                           // number of zones (LED strips), each zone requires a GPIO pin (or two)
+int numLEDs[MAXZONES];                      // number of pixels in each zone
+int numSections[MAXZONES];                  // number of sections in each zone
+int sectionStart[MAXZONES][MAXSECTIONS];    // start pixel of each section in each zone
+int sectionEnd[MAXZONES][MAXSECTIONS];      // last pixel of each section in each zone
+char zoneLEDType[MAXZONES][10];             // LED type for each zone (WS2801, WS2811, WS2812, ...)
 
 // This is an array of leds.  One item for each led in your strip.
-CRGB *leds = NULL;
-int numLEDs = 1;
+CRGB *leds[MAXZONES];
+
+// EEPROM layout:
+// [0-2]   esp ................ verification string
+// [3-5]   999 ................ Domoticz idx
+// [6]     9   ................ number of used zones
+// [7-12]  XXXXXX ............. zone 1 LED type (WS2801, WS2811, WS2812)
+// [13-15] 999 ................ number of LEDs in zone
+// [16-18] 999 ................ start of section 1
+// [19-21] 999 ................ start of section 2
+// [22-24] 999 ................ start of section 3
+// [25-27] 999 ................ start of section 4
+// [28-30] 999 ................ start of section 5
+// [31-33] 999 ................ start of section 6
+// [34-36] 999 ................ start of section 7
+// [37-39] 999 ................ start of section 8
+// [40-42] 999 ................ start of section 9
+// [43-48] XXXXXX ............. zone 2 LED type
+// ....
+#define EEPROM_SIZE (7+(6+3+3*MAXSECTIONS)*MAXZONES)   // limit is 512 bytes
+
+// global variables
 
 int selectedEffect = -1;
 int gHue = 0;
@@ -50,13 +77,11 @@ int gHue = 0;
 int varDelay;  // 1000ms / FPS
 
 // Update these with values suitable for your network.
-char mqtt_server[40] = "192.168.70.11";
+char mqtt_server[40] = "";
 char mqtt_port[7]    = "1883";
 char username[33]    = "";
 char password[33]    = "";
 
-char c_LEDtype[10]   = "WS2812";    // LED strip type
-char c_numLEDs[4]    = "1";         // total number of LEDs on strip
 char c_idx[4]        = "0";         // domoticz switch IDX (type Selector, values define type of LED effect)
 
 // flag for saving data from WiFiManager
@@ -82,16 +107,10 @@ void saveConfigCallback();
 //-----------------------------------------------------------
 // main setup
 void setup() {
-  char str[21];
+  char str[EEPROM_SIZE+1];
 
   Serial.begin(115200);
   delay(3000);
-
-  #if !DEBUG
-  // Initialize the BUILTIN_LED pin as an output & set initial state LED on
-  pinMode(BUILTIN_LED, OUTPUT);
-  digitalWrite(BUILTIN_LED, LOW);
-  #endif
 
   String WiFiMAC = WiFi.macAddress();
   WiFiMAC.replace(":","");
@@ -110,13 +129,13 @@ void setup() {
   #endif
 
   // request 20 bytes from EEPROM & write LED info
-  EEPROM.begin(20);
+  EEPROM.begin(EEPROM_SIZE);
 
   #if DEBUG
   Serial.println("");
   Serial.print("EEPROM data: ");
   #endif
-  for ( int i=0; i<20; i++ ) {
+  for ( int i=0; i<EEPROM_SIZE; i++ ) {
     str[i] = EEPROM.read(i);
     #if DEBUG
     Serial.print(str[i], HEX);
@@ -129,11 +148,59 @@ void setup() {
   Serial.println(")");
   #endif
 
+  // read data from EEPROM
   if ( strncmp(str,"esp",3)==0 ) {
-    sscanf(str,"esp%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
-  } else if ( strncmp(str,"WS2",3)==0 ) {
-    // backwards compatible
-    sscanf(str,"%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
+    sscanf(str,"esp%3s%1d",c_idx, numZones);
+  } else {
+    strcpy(c_idx, "0");
+    numZones=0;
+  }
+
+  #if DEBUG
+  Serial.print("idx: ");
+  Serial.println(c_idx);
+  Serial.print("# of zones: ");
+  Serial.println(numZones, DEC);
+  #endif
+
+  for ( int i=0; i<numZones; i++ ) {
+    char tmp[10];
+    strncpy(zoneLEDType[i], &str[7+(6+3+3*MAXSECTIONS)*i], 6);  // LED type for zone
+    zoneLEDType[i][7] = '\0';
+    strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 1], 3);
+    tmp[4] = '\0';
+    numLEDs[i] = atoi(tmp);       // number of LEDs in zone
+
+    #if DEBUG
+    Serial.print("LED type: ");
+    Serial.println(zoneLEDType[i]);
+    Serial.print("# of LEDs: ");
+    Serial.println(numLEDs[i],DEC);
+    #endif
+
+    // get starting pixels for each section (0=empty section (except for first))
+    numSections[i] = 0;
+    for ( int j=0; j<MAXSECTIONS; j++ ) {
+      strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 4 + 3*j], 3);
+      tmp[4] = '\0';
+      sectionStart[i][j] = atoi(tmp);
+      sectionEnd[i][j] = numLEDs[i];  // will be overwritten later
+
+      if ( sectionStart[i][j] != 0 || j==0 ) {
+        numSections[i]++;
+        if ( j>0 )
+          sectionEnd[i][j-1] = sectionStart[i][j]-1;
+
+        #if DEBUG
+        Serial.print("Zone ");
+        Serial.print(i, DEC);
+        Serial.print(" section ");
+        Serial.print(j, DEC);
+        Serial.print(" start: ");
+        Serial.println(sectionStart[i][j],DEC);
+        #endif
+      }
+    }
   }
 
 //----------------------------------------------------------
@@ -200,8 +267,6 @@ void setup() {
   WiFiManagerParameter custom_username("username", "username", username, 32);
   WiFiManagerParameter custom_password("password", "password", password, 32);
 
-  WiFiManagerParameter custom_ledtype("LEDtype", "LED type (WS28xx)", c_LEDtype, 6);
-  WiFiManagerParameter custom_numleds("numLEDs", "Number of LEDs", c_numLEDs, 3);
   WiFiManagerParameter custom_idx("idx", "Domoticz switch IDX", c_idx, 3);
 
   // WiFiManager
@@ -223,8 +288,6 @@ void setup() {
   wifiManager.addParameter(&custom_username);
   wifiManager.addParameter(&custom_password);
 
-  wifiManager.addParameter(&custom_ledtype);
-  wifiManager.addParameter(&custom_numleds);
   wifiManager.addParameter(&custom_idx);
 
   // set minimum quality of signal so it ignores AP's under that quality
@@ -253,13 +316,7 @@ void setup() {
   strcpy(username, custom_username.getValue());
   strcpy(password, custom_password.getValue());
 
-  strcpy(c_LEDtype, custom_ledtype.getValue());
-  strcpy(c_numLEDs, custom_numleds.getValue());
   strcpy(c_idx, custom_idx.getValue());
-
-  // sanity check
-  numLEDs = max(min(atoi(c_numLEDs),999),1);
-  sprintf(c_numLEDs,"%d",numLEDs);
 
   //save the custom parameters to FS
   if ( shouldSaveConfig ) {
@@ -283,9 +340,9 @@ void setup() {
       #endif
     }
 
-    // write LED info to EEPROM
-    sprintf(str,"esp%6s%3s%3s",c_LEDtype,c_numLEDs,c_idx);
-    for ( int i=0; i<=strlen(str); i++ ) { // write terminating '\0' too
+    // write idx info to EEPROM
+    sprintf(str,"esp%3s",c_idx);
+    for ( int i=0; i<strlen(str); i++ ) {
       EEPROM.write(i, str[i]);
     }
     EEPROM.commit();
@@ -335,41 +392,101 @@ void setup() {
   ArduinoOTA.begin();
 
   // LED configuration set-up
-  varDelay = (int)(1000/(((ceil(numLEDs/100.0))+1)*15));  // 1000ms / FPS (prevent 0ms delay)
+  varDelay = 15;  // 66 FPS
 
-  #if DEBUG
-  Serial.print("LED type: ");
-  Serial.println(c_LEDtype);
-  Serial.print("# of LEDs: ");
-  Serial.println(c_numLEDs);
-  Serial.print("idx: ");
-  Serial.println(c_idx);
-  Serial.print("Delay: ");
-  Serial.println(varDelay,DEC);
-  #endif
+  for ( int i=0; i<numZones; i++ ) {
+    
+    // allocate memory for LED array
+    leds[i] = (CRGB*)calloc(numLEDs[i], sizeof(CRGB));
 
-  #if !DEBUG
-  // if connected set state LED off
-  digitalWrite(BUILTIN_LED, HIGH);
-  #endif
+    // allocate Fire effect heat data
+    heat[i] = (byte*)calloc(numLEDs[i], sizeof(byte));  // Fire effect static data buffer
 
-  // allocate memory for LED array and initialize FastLED library
-  //leds = new CRGB[numLEDs];
-  leds = (CRGB*)calloc(numLEDs, sizeof(CRGB));
-  
-  if ( strcmp(c_LEDtype,"WS2801")==0 ) {
-    FastLED.addLeds<WS2801, DATA_PIN, CLOCK_PIN, RGB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
-  } else if ( strcmp(c_LEDtype,"WS2811")==0 ) {
-    FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
-  } else if ( strcmp(c_LEDtype,"WS2812")==0 ) {
-    FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, numLEDs).setCorrection(TypicalLEDStrip);
-  } else {
+    // Initialize FastLED library
+    // Since FastLED uses C++ templates, we can't use variables for pin values:
+    // const int dataPINs[] = {0, 4, 12, 15};  // D4, D2, D6, D8 (may also use TX for 5th zone)
+    // const int clockPINs[] = {2, 5, 14, 13}; // D3, D1, D5, D7; for WS2801 type (may also use RX for 5th zone)
+    // FastLED.addLeds<WS2812, dataPINs[i], GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+    
+    if ( strcmp(zoneLEDType[i],"WS2801")==0 ) {
+      switch (i) {
+        case 1:
+          FastLED.addLeds<WS2801, 0, 2, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 2:
+          FastLED.addLeds<WS2801, 4, 5, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 3:
+          FastLED.addLeds<WS2801, 12, 14, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 4:
+          FastLED.addLeds<WS2801, 15, 13, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+      }
+    } else if ( strcmp(zoneLEDType[i],"WS2811")==0 ) {
+      switch (i) {
+        case 1:
+          FastLED.addLeds<WS2811, 0, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 2:
+          FastLED.addLeds<WS2811, 4, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 3:
+          FastLED.addLeds<WS2811, 12, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 4:
+          FastLED.addLeds<WS2811, 15, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+/*
+        // use the following for zones 5-8
+        case 5:
+          FastLED.addLeds<WS2811, 2, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 6:
+          FastLED.addLeds<WS2811, 5, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 7:
+          FastLED.addLeds<WS2811, 14, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 8:
+          FastLED.addLeds<WS2811, 13, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+*/
+      }
+    } else if ( strcmp(zoneLEDType[i],"WS2812")==0 ) {
+      switch (i) {
+        case 1:
+          FastLED.addLeds<WS2812, 0, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 2:
+          FastLED.addLeds<WS2812, 4, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 3:
+          FastLED.addLeds<WS2812, 12, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 4:
+          FastLED.addLeds<WS2812, 15, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+/*
+        // use the following for zones 5-8
+        case 5:
+          FastLED.addLeds<WS2812, 2, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 6:
+          FastLED.addLeds<WS2812, 5, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 7:
+          FastLED.addLeds<WS2812, 14, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 8:
+          FastLED.addLeds<WS2812, 13, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+*/
+      }
+    }
   }
-  
-  heat = (byte*)calloc(numLEDs, sizeof(byte));  // Fire effect static data buffer
 
   randomSeed(millis());
-  //selectedEffect = random(0,19);
 
   // initialize MQTT connection & provide callback function
   sprintf(outTopic, "%s/%s", MQTTBASE, clientId);
@@ -400,7 +517,9 @@ void loop() {
   switch ( selectedEffect ) {
 
     case 0 : {
-              fadeToBlackBy(leds, numLEDs, 32);
+              for ( int z=0; z<numZones; z++ ) {
+                fadeToBlackBy(leds[z], numLEDs[z], 32);
+              }
               showStrip();
               delay(100);
               break;
@@ -423,17 +542,17 @@ void loop() {
               }
 
     case 4  : {
-              HalloweenEyes(CRGB::Red, max((int)ceil(numLEDs/50.0),1), max((int)ceil(numLEDs/50.0),1), false);
+              HalloweenEyes(CRGB::Red, 1, 1, false);
               break;
               }
               
     case 5  : {
-              CylonBounce(max(numLEDs/20,4), varDelay);
+              CylonBounce(4, 30);
               break;
               }
               
     case 6  : {
-              NewKITT(rRGB, max((int)numLEDs/20,2), varDelay);
+              NewKITT(rRGB, 8, 15);
               gHue += 7;
               break;
               }
@@ -466,8 +585,8 @@ void loop() {
               }
               
     case 12 : {
-              colorWipe(rRGB, false, varDelay/2);
-              colorWipe(CRGB::Black, false, varDelay/2);
+              colorWipe(rRGB, false, 15);
+              colorWipe(CRGB::Black, false, 15);
               //colorWipe(CRGB::Black, true, varDelay); // reverse
               gHue += 7;
               break;
@@ -490,7 +609,7 @@ void loop() {
 
     case 16 : {
               // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS), split on long strings, split point
-              Fire(55, 120, varDelay, true, 119);
+              Fire(55, 120, 15, true, 119);
               break;
               }
 
@@ -509,7 +628,7 @@ void loop() {
               }
 
     case 19 : {
-              meteorRain(CRGB::White, min((int)numLEDs/20,5), 128, true, 30);
+              meteorRain(CRGB::White, 8, 128, true, 30);
               break;
               }
 
@@ -557,8 +676,9 @@ void showStrip() {
 //---------------------------------------------------
 // MQTT callback function
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
-  char tmp[80];
+  char tmp[EEPROM_SIZE];
   boolean lRestart = false;
+  boolean lSaveData = false;
   
   payload[length] = '\0'; // "just in case" fix
 /*
@@ -602,34 +722,15 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 
   } else if ( strstr(topic, MQTTBASE) ) {
     
-    if ( strstr(topic,"/command/leds") ) {
-
-      lRestart = true;
-      numLEDs = max(min((int)newPayload.toInt(),999),1);
-      sprintf(c_numLEDs,"%d",numLEDs);
-      #if DEBUG
-      Serial.print("New # of LEDs: ");
-      Serial.println(numLEDs, DEC);
-      #endif
-      
-      varDelay = 1000/(((ceil(numLEDs/50.0))+1)*15);  // 1000ms / FPS
-      
-    } else if ( strstr(topic,"/command/idx") ) {
+    if ( strstr(topic,"/command/idx") ) {
       
       sprintf(c_idx,"%d",max(min((int)newPayload.toInt(),999),1));
       #if DEBUG
       Serial.print("New idx: ");
       Serial.println(c_idx);
       #endif
-  
-    } else if ( strstr(topic,"/command/ledtype") ) {
-
-      lRestart = true;
-      newPayload.toCharArray(c_LEDtype,7);
-      #if DEBUG
-      Serial.print("New LED type: ");
-      Serial.println(c_LEDtype);
-      #endif
+      
+      lSaveData = true;
   
     } else if ( strstr(topic,"/command/effect") ) {
       
@@ -640,50 +741,141 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       Serial.print("New effect: ");
       Serial.println(selectedEffect, DEC);
       #endif
+      
       return;
+  
+    } else if ( strstr(topic,"/command/leds/") ) {
+
+      int zone = (int)(topic[strlen(topic)-1] - '0');
+      if ( zone < 0 || zone > MAXZONES-1 )
+        return;
+
+      numLEDs[zone] = max(min((int)newPayload.toInt(),999),1);
+      #if DEBUG
+      Serial.print("New # of LEDs for zone ");
+      Serial.print(zone, DEC);
+      Serial.print(":");
+      Serial.println(numLEDs[zone], DEC);
+      #endif
+      
+      lSaveData = true;
+      lRestart = true;
+      
+    } else if ( strstr(topic,"/command/ledtype/") ) {
+
+      int zone = (int)(topic[strlen(topic)-1] - '0');
+      if ( zone < 0 || zone > MAXZONES-1 )
+        return;
+
+      newPayload.toCharArray(zoneLEDType[zone], 7);
+
+      #if DEBUG
+      Serial.print("New LED type for zone ");
+      Serial.print(zone, DEC);
+      Serial.print(":");
+      Serial.println(zoneLEDType[zone]);
+      #endif
+
+      lSaveData = true;
+      lRestart = true;
+  
+    } else if ( strstr(topic,"/command/sections/") ) {
+
+      int zone = (int)(topic[strlen(topic)-1] - '0');
+      if ( zone < 0 || zone > MAXZONES-1 )
+        return;
+
+      int section = 0;
+      int sections = 0;
+      char *buf = strtok((char*)payload, ",;");
+      while ( buf != NULL ) {
+        sections++;
+        sectionStart[zone][section] = atoi(buf);
+
+        #if DEBUG
+        Serial.print("New section for zone ");
+        Serial.print(zone, DEC);
+        Serial.print(":");
+        Serial.println(sectionStart[zone][section]);
+        #endif
+
+        buf = strtok(NULL, ",;");
+      }
+      numSections[zone] = sections;
+
+      lSaveData = true;
+      lRestart = true;
   
     } else if ( strstr(topic,"/command/restart") ) {
 
+      #if DEBUG
+      Serial.println("Restarting...");
+      #endif
       lRestart = true;
       
     } else if ( strstr(topic,"/command/reset") ) {
 
+      #if DEBUG
+      Serial.println("Factory reset...");
+      #endif
       lRestart = true;
       
-      // erase 20 bytes from EEPROM
-      EEPROM.begin(20);
-      for ( int i=0; i<20; i++ ) {
+      // erase EEPROM
+      EEPROM.begin(EEPROM_SIZE);
+      for ( int i=0; i<EEPROM_SIZE; i++ ) {
         EEPROM.write(i, '\0');
       }
       EEPROM.commit();
       EEPROM.end();
       delay(250);  // wait for write to complete
+      #if DEBUG
+      Serial.println("Erased EEPROM");
+      #endif
   
       // clean FS
       SPIFFS.format();
+      #if DEBUG
+      Serial.println("SPIFFS formatted");
+      #endif
   
       // clear WiFi data & disconnect
       WiFi.disconnect();
+      #if DEBUG
+      Serial.println("WiFi disconnected");
+      #endif
       
     } else {
       return;
     }
 
-    // request 16 bytes from EEPROM & write LED info
-    sprintf(tmp, "esp%6s%3s%3s", c_LEDtype, c_numLEDs, c_idx);
-    #if DEBUG
-    Serial.println(tmp);
-    #endif
-    EEPROM.begin(20);
-    for ( int i=0; i<=strlen(tmp); i++ ) {  // write terminating '\0' too
-      EEPROM.write(i, tmp[i]);
+    if ( lSaveData ) {
+      // write configuration to buffer
+      sprintf(tmp,"esp%3s%1d", c_idx, numZones);                      // idx & # of zones
+      for ( int z=0; z<numZones; z++ ) {
+        strncpy(&tmp[7+(6+3+3*MAXSECTIONS)*z], zoneLEDType[z], 6);    // LED type
+        intToStr(numLEDs[z], &tmp[7+(6+3+3*MAXSECTIONS)*z + 1], 3);   // number of LEDS in zone
+        for ( int s=0; s<MAXSECTIONS; s++ ) {                         // section start
+          intToStr(s<numSections[z] ? sectionStart[z][s] : 0, &tmp[7+(6+3+3*MAXSECTIONS)*z + 4 + 3*s], 3);
+        }
+      }
+      tmp[7+(6+3+3*MAXSECTIONS)*numZones+1] = '\0';   // terminating 0
+      
+      #if DEBUG
+      Serial.println(tmp);
+      #endif
+      
+      // store configuration to EEPROM
+      EEPROM.begin(EEPROM_SIZE);
+      for ( int i=0; i<=strlen(tmp); i++ ) {
+        EEPROM.write(i, tmp[i]);
+      }
+      EEPROM.commit();
+      EEPROM.end();
+      delay(1000);
+      #if DEBUG
+      Serial.println("Written to EEPROM.");
+      #endif
     }
-    EEPROM.commit();
-    EEPROM.end();
-    delay(1000);
-    #if DEBUG
-    Serial.println("Written to EEPROM.");
-    #endif
 
     if ( lRestart ) {
       // restart ESP
@@ -716,9 +908,8 @@ void mqtt_reconnect() {
       DynamicJsonDocument doc(256);
       doc["mac"] = WiFi.macAddress(); //.toString().c_str();
       doc["ip"] = WiFi.localIP().toString();  //.c_str();
-      doc["LEDtype"] = c_LEDtype;
-      doc["numLEDs"] = c_numLEDs;
       doc["idx"] = c_idx;
+      doc["zones"] = numZones;
 
       size_t n = serializeJson(doc, msg);
       sprintf(tmp, "%s/announce", outTopic);

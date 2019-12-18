@@ -1,10 +1,23 @@
+/*
+ * effects.h  - master include for LED effects
+ */
+ 
+#define MAXZONES 4                          // can be 5 if also using RX/TX pins, if not using WS2801 pixels can be up to 8
+#define MAXSECTIONS 9                       // don't go wild; 9 is enough
+
+extern int numLEDs[];
+extern int numZones;
+extern int numSections[];
+extern int sectionStart[][MAXSECTIONS];
+extern int sectionEnd[][MAXSECTIONS];
+
 // This is an array of leds.  One item for each led in your strip.
-extern CRGB *leds;
-extern int numLEDs;
+extern CRGB *leds[];
 
 extern boolean breakEffect;
+
 // Fire effect static data (byte[numLEDs]) allocated at init
-extern byte *heat;
+extern byte *heat[];
 
 // from master file
 void showStrip();
@@ -38,10 +51,10 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]);
 void meteorRain(CRGB c, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
 
 // Common Functions
-void setPixel(int Pixel, CRGB c);
-void setAll(CRGB c);
-void fadeToBlack(int ledNo, byte fadeValue);
-void addGlitter(fract8 chanceOfGlitter);
+void setPixel(int zone, int Pixel, CRGB c);
+void setAll(int zone, int section, CRGB c);
+void fadeToBlack(int zone, int ledNo, byte fadeValue);
+void addGlitter(int zone, int section, fract8 chanceOfGlitter);
 
 // private functions
-void setPixelHeatColor(int Pixel, byte temperature);
+void setPixelHeatColor(int zone, int Pixel, byte temperature);
