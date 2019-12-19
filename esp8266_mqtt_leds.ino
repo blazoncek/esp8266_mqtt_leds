@@ -515,6 +515,10 @@ void setup() {
 void loop() {
   CRGB rRGB;
 
+  // get the pixel color from hue
+  gHue &= 0xFF;
+  rRGB = CHSV(gHue,255,255);
+
   // handle OTA updates
   ArduinoOTA.handle();
 
@@ -524,10 +528,6 @@ void loop() {
   }
   // MQTT message processing
   client.loop();
-
-  // shift the hue a bit
-  rRGB = CHSV(gHue++,255,255);
-  if ( gHue > 255 ) gHue = 0;
 
   selectedEffect = max(min(selectedEffect,24),0); // sanity check
   switch ( selectedEffect ) {
@@ -548,7 +548,7 @@ void loop() {
 
     case 2  : {
               FadeInOut(rRGB);
-              gHue += 7;
+              gHue += 8;
               break;
               }
               
@@ -569,12 +569,13 @@ void loop() {
               
     case 6  : {
               NewKITT(rRGB, 8, 15);
-              gHue += 7;
+              gHue += 8;
               break;
               }
               
     case 7  : {
               Twinkle(rRGB, 250, false);
+              gHue++;
               break;
               }
               
@@ -597,6 +598,7 @@ void loop() {
               
     case 11 : {
               runningLights(rRGB, 50);
+              gHue++;
               break;
               }
               
@@ -604,7 +606,7 @@ void loop() {
               colorWipe(rRGB, false, 15);
               colorWipe(CRGB::Black, false, 15);
               //colorWipe(CRGB::Black, true, varDelay); // reverse
-              gHue += 7;
+              gHue += 8;
               break;
               }
 
@@ -615,6 +617,7 @@ void loop() {
 
     case 14 : {
               theaterChase(rRGB, 200);
+              gHue++;
               break;
               }
 
@@ -624,7 +627,7 @@ void loop() {
               }
 
     case 16 : {
-              // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS), split on long strings, split point
+              // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS)
               Fire(55, 120, 30);
               break;
               }
@@ -632,7 +635,7 @@ void loop() {
     case 17 : {
               // simple bouncingBalls not included, since BouncingColoredBalls can perform this as well as shown below
               bouncingColoredBalls(1, &rRGB);
-              gHue += 7;
+              gHue += 8;
               break;
               }
 
@@ -650,11 +653,13 @@ void loop() {
 
     case 20 : {
               sinelon(rRGB);
+              gHue++;
               break;
               }
 
     case 21 : {
               bpm(gHue);
+              gHue++;
               break;
               }
 
@@ -666,6 +671,7 @@ void loop() {
     case 23 : {
               CRGB colors[3] = { rRGB, CHSV((gHue+128)&255,255,255), CRGB::Black };
               colorChase(colors, 4, true);
+              gHue++;
               break;
               }
 
