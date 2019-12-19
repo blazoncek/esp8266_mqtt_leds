@@ -14,45 +14,37 @@ int gCurrentPattern = 0;
 
 //------------------------------------------------------//
 void RGBLoop() {
-  CRGB c;
   static int count = 0;
   
-  if ( count < 512 ) {  // 256 up, 256 down
-    c = CRGB::Red;
-  } else if ( count < 1024 ) {
-    c = CRGB::Green;
+  if ( count < 256 ) {  // 256 up, 256 down
+    gHue = HUE_RED;
+  } else if ( count < 512 ) {
+    gHue = HUE_GREEN;
   } else {
-    c = CRGB::Blue;
+    gHue = HUE_BLUE;
   }
-  FadeInOut(c);
+  FadeInOut();
 
-  if ( ++count == 1536 ) count = 0;
+  if ( ++count == 768 ) count = 0;
 }
 
 //------------------------------------------------------//
-void FadeInOut(CRGB c) {
-  static int k = 0, d = 1;
-  float r, g, b;
+void FadeInOut() {
+  static unsigned int k = 0;
 
-  r = (k/255.0)*c.red;
-  g = (k/255.0)*c.green;
-  b = (k/255.0)*c.blue;
-
+  unsigned int level = triwave8(k);
+  CRGB c = CHSV(gHue, 255, level);
+  
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      setAll(z, s, CRGB(r,g,b));
+      setAll(z, s, c);
     }
   }
   showStrip();
+  delay(10);
 
-  k += d;
-  if ( k==255 ) {
-    d = -1;
-  } else if ( k==0 ) {
-    d = 1;
-  }
-  
-  delay(5);
+  ++k &= 0xFF;
+  if ( k==0 ) gHue += 8;
 }
 
 //------------------------------------------------------//
@@ -126,188 +118,177 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
 void CylonBounce(int EyeSize, int SpeedDelay) {
   CRGB c = CRGB::Red;
   static boolean dir = false; // start left-to-right
-  unsigned int pos, b = beat8(90);
+  static unsigned int pct = 0;  // starting position
   
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      unsigned int relPos = b * (ledsPerSection-EyeSize-2) / 256; // get position using 'sawtooth' BPM function
-
-      if ( dir )
-        pos = sectionEnd[z][s] - relPos;
-      else
-        pos = relPos + sectionStart[z][s];
+      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize-2)) / 100); // get position using 'sawtooth' BPM function
 
       setAll(z, s, CRGB::Black);
 
-      setPixel(z, pos, c/4);
+      setPixel(z, pos, c/8);
       for ( int j=1; j<=EyeSize; j++ ) {
         setPixel(z, pos+j, c); 
       }
-      setPixel(z, pos+EyeSize+1, c/4);
+      setPixel(z, pos+EyeSize+1, c/8);
     }
   }
-  if ( b==255 ) dir = !dir;
   
   showStrip();
   delay(SpeedDelay);
+
+  if ( dir ) {
+    pct--;
+  } else {
+    pct++;
+  }
+
+  if ( pct == 100 || pct == 0) {
+    dir = !dir;
+  }
 }
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 //------------------------------------------------------//
-void NewKITT(CRGB c, int EyeSize, int SpeedDelay){
-    
+void NewKITT(int EyeSize, int SpeedDelay){
+  CRGB c = CHSV(gHue, 255, 255);
+
   // Call the current pattern function once, updating the 'leds' array
   gPatterns[gCurrentPattern](c, EyeSize, SpeedDelay, true);
 
-/*
-  RightToLeft(c, EyeSize, SpeedDelay);
-  LeftToRight(c, EyeSize, SpeedDelay);
-  OutsideToCenter(c, EyeSize, SpeedDelay);
-  CenterToOutside(c, EyeSize, SpeedDelay);
-  LeftToRight(c, EyeSize, SpeedDelay);
-  RightToLeft(c, EyeSize, SpeedDelay);
-  OutsideToCenter(c, EyeSize, SpeedDelay);
-  CenterToOutside(c, EyeSize, SpeedDelay);
-*/
+}
+
+void nextPattern() {
+  gCurrentPattern = (gCurrentPattern + 1) % ARRAY_SIZE(gPatterns);
+  if ( gCurrentPattern == 0 )
+    gHue += 8;
 }
 
 // used by NewKITT
 void CenterToOutside(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
-  unsigned int b = beat8(90);
+  static unsigned int pct = 50;  // starting position
   
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      int relPos = ledsPerSection/2 - (b * (ledsPerSection-EyeSize-2) / 512); // get position using 'sawtooth' BPM function (only half)
+      unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      unsigned int pos = ((pct * (ledsPerSection-EyeSize)) / 100);
 
       if ( Fade ) {
-        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]-EyeSize-2; i++ )
+        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]; i++ )
           fadeToBlack(z, i, 64); // fade brightness of all LEDs in one step by 25%
       } else {
         setAll(z, s, CRGB::Black);
       }
-      
-      setPixel(z, sectionStart[z][s]+relPos, c/4);
-      for ( int j=1; j<=EyeSize; j++ ) {
-        setPixel(z, sectionStart[z][s]+relPos+j, c); 
+
+      for ( int j=0; j<EyeSize; j++ ) {
+        setPixel(z, sectionStart[z][s]+pos+j, c); 
+        setPixel(z, sectionEnd[z][s]-pos-j, c); 
       }
-      setPixel(z, sectionStart[z][s]+relPos+EyeSize+1, c/4);
-      
-      setPixel(z, sectionEnd[z][s]-relPos, c/4);
-      for ( int j=1; j<=EyeSize; j++ ) {
-        setPixel(z, sectionEnd[z][s]-relPos-j, c); 
-      }
-      setPixel(z, sectionEnd[z][s]-relPos-EyeSize-1, c/4);
     }
   }
   
-  if ( b==255 )
-    gCurrentPattern = (gCurrentPattern + 1) % ARRAY_SIZE( gPatterns);
-
   showStrip();
   delay(SpeedDelay);
+
+  if ( pct-- == 0 ) {
+    pct = 50;
+    nextPattern();
+  }
 }
 
 // used by NewKITT
 void OutsideToCenter(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
-  unsigned int b = beat8(90);
-
+  static unsigned int pct = 0;  // starting position
+  
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      int relPos = b * (ledsPerSection-EyeSize-2) / 512; // get position using 'sawtooth' BPM function (only half)
+      unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      unsigned int pos = ((pct * (ledsPerSection-EyeSize)) / 100);
 
       if ( Fade ) {
-        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]-EyeSize-2; i++ )
+        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]; i++ )
           fadeToBlack(z, i, 64); // fade brightness of all LEDs in one step by 25%
       } else {
         setAll(z, s, CRGB::Black);
       }
-      
-      setPixel(z, sectionStart[z][s]+relPos, c/4);
+
       for ( int j=1; j<=EyeSize; j++ ) {
-        setPixel(z, sectionStart[z][s]+relPos+j, c); 
+        setPixel(z, sectionStart[z][s]+pos+j, c); 
+        setPixel(z, sectionEnd[z][s]-pos-j, c); 
       }
-      setPixel(z, sectionStart[z][s]+relPos+EyeSize+1, c/4);
-      
-      setPixel(z, sectionEnd[z][s]-relPos, c/4);
-      for ( int j=1; j<=EyeSize; j++ ) {
-        setPixel(z, sectionEnd[z][s]-relPos-j, c); 
-      }
-      setPixel(z, sectionEnd[z][s]-relPos-EyeSize-1, c/4);
     }
   }
-
-  if ( b==255 )
-    gCurrentPattern = (gCurrentPattern + 1) % ARRAY_SIZE( gPatterns);
-
+  
   showStrip();
   delay(SpeedDelay);
+
+  if ( pct++ == 50 ) {
+    pct = 0;
+    nextPattern();
+  }
 }
 
 // used by NewKITT & Cylon Bounce
 void LeftToRight(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
-  unsigned int b = beat8(90);
-
+  static unsigned int pct = 0;  // starting position
+  
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      int relPos = b * (ledsPerSection-EyeSize-2) / 256; // get position using 'swtooth' BPM function
-      int pos = relPos + sectionStart[z][s];
+      unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
 
       if ( Fade ) {
-        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]-EyeSize-2; i++ )
+        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]; i++ )
           fadeToBlack(z, i, 64); // fade brightness of all LEDs in one step by 25%
       } else {
         setAll(z, s, CRGB::Black);
       }
 
-      setPixel(z, pos, c/4);
-      for ( int j=1; j<=EyeSize; j++ ) {
+      for ( int j=0; j<EyeSize; j++ ) {
         setPixel(z, pos+j, c); 
       }
-      setPixel(z, pos+EyeSize+1, c/4);
     }
   }
-
-  if ( b==255 )
-    gCurrentPattern = (gCurrentPattern + 1) % ARRAY_SIZE( gPatterns);
-
+  
   showStrip();
   delay(SpeedDelay);
+
+  if ( pct++ == 100 ) {
+    pct = 0;
+    nextPattern();
+  }
 }
 
 // used by NewKITT & Cylon Bounce
 void RightToLeft(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
-  unsigned int b = beat8(90);
-
+  static unsigned int pct = 100;  // starting position
+  
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      int relPos = b * (ledsPerSection-EyeSize-2) / 256; // get position using 'sawtooth' BPM function
-      int pos = sectionEnd[z][s] - relPos;
+      unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
 
       if ( Fade ) {
-        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]-EyeSize-2; i++ )
+        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]; i++ )
           fadeToBlack(z, i, 64); // fade brightness of all LEDs in one step by 25%
       } else {
         setAll(z, s, CRGB::Black);
       }
-      
-      setPixel(z, pos, c/4);
-      for ( int j=1; j<=EyeSize; j++ ) {
-        setPixel(z, pos-j, c); 
+
+      for ( int j=0; j<EyeSize; j++ ) {
+        setPixel(z, pos+j, c); 
       }
-      setPixel(z, pos-EyeSize-1, c/4);
     }
   }
-
-  if ( b==255 )
-    gCurrentPattern = (gCurrentPattern + 1) % ARRAY_SIZE( gPatterns);
-
+  
   showStrip();
   delay(SpeedDelay);
+
+  if ( pct-- == 0 ) {
+    pct = 100;
+    nextPattern();
+  }
 }
 
 //------------------------------------------------------//
@@ -421,46 +402,60 @@ void snowSparkle(int SparkleDelay, int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void runningLights(CRGB c, int WaveDelay) {
-  static int Position = 0;
+void runningLights(int WaveDelay) {
+  static unsigned int offset = 0;
   
   for ( int z=0; z<numZones; z++ ) {
-    Position = 0;
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       
       for ( int i=0; i<ledsPerSection; i++ ) {
-        // sine wave, 3 offset waves make a rainbow!
-        float level = (sin(i+Position) + 1.0) / 2.2;
-        setPixel(z, sectionStart[z][s] + i, CRGB(level*c.r,level*c.g,level*c.b));
-      }
-      if ( Position++ >= ledsPerSection ) {
-        Position = 0;
+        float level = sin8( (i*1024/ledsPerSection + offset) & 0xFF );
+        setPixel(z, sectionStart[z][s] + i, CHSV(gHue, 255, level));
       }
     }
   }
+  
   showStrip();
   delay(WaveDelay);
+
+  gHue++;
+  ++offset &= 0xFF;
 }
 
 //------------------------------------------------------//
-void colorWipe(CRGB c, boolean Reverse, int SpeedDelay) {
+void colorWipe(boolean Reverse, int SpeedDelay) {
+  static unsigned int pct = 0;  // starting position
+  static boolean blank = false;
+  CRGB c = CHSV(gHue, 255, 255);
+  
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      unsigned int pos = sectionStart[z][s] + ((pct * ledsPerSection) / 100);
 
-      for ( int i=0; i<ledsPerSection; i++ ) {
-        if ( breakEffect ) return;
-        if ( Reverse ) {
-          setPixel(z, sectionEnd[z][s] - i - 1, c);
-        } else {
-          setPixel(z, sectionStart[z][s] + i, c);
-        }
-      }
+      setPixel(z, pos, blank ? CRGB::Black : c);
     }
   }
+  
   showStrip();
   delay(SpeedDelay);
+
+  if ( Reverse ) {
+    if ( pct-- == 0 ) {
+      pct = 100;
+      blank = !blank;
+      if ( blank )
+        gHue += 8;
+    }
+  } else {
+    if ( pct++ == 100 ) {
+      pct = 0;
+      blank = !blank;
+      if ( blank )
+        gHue += 8;
+    }
+  }
 }
 
 //------------------------------------------------------//
@@ -541,23 +536,24 @@ void rainbowChase(int SpeedDelay) {
 
 //------------------------------------------------------//
 void rainbowCycle(int SpeedDelay) {
-  static int Hue = 0;
-  CRGB c;
+//  static int Hue = 0;
+//  CRGB c;
 
   //each call shifts the hue a bit
-  ++Hue &= 0xFF;
+//  ++Hue &= 0xFF;
   for ( int z=0; z<numZones; z++ ) {
+//    fill_rainbow(leds[z], numLEDs[z], gHue++);
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-    
       for ( int i=0; i<ledsPerSection; i++ ) {
-        c = CHSV(((i * 256 / ledsPerSection) + Hue) & 255, 255, 255);
-        setPixel(z, sectionStart[z][s] + i, c);
+//        c = CHSV(((i * 256 / ledsPerSection) + (gHue & 0xFF)) & 255, 255, 255);
+        setPixel(z, sectionStart[z][s] + i, CHSV(((i * 256 / ledsPerSection) + (gHue & 0xFF)) & 255, 255, 255));
       }
     }
   }
   showStrip();
   delay(SpeedDelay);
+  gHue++;
 }
 
 //------------------------------------------------------//
@@ -603,7 +599,7 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
     
       // Step 4.  Convert heat to LED colors
       for ( int j=sectionStart[z][s]; j<sectionEnd[z][s]; j++ ) {
-        setPixelHeatColor(z, j, heat[z][j]);
+        setPixel(z, j, HeatColor(heat[z][j]));  // from FastLED library
       }
     }
   }
@@ -611,6 +607,7 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
   delay(SpeedDelay);
 }
 
+/*
 void setPixelHeatColor(int zone, int Pixel, byte temperature) {
   // Scale 'heat' down from 0-255 to 0-191
   byte t192 = round((temperature/255.0)*191);
@@ -628,6 +625,7 @@ void setPixelHeatColor(int zone, int Pixel, byte temperature) {
     setPixel(zone, Pixel, CRGB(heatramp, 0, 0));
   }
 }
+*/
 
 //------------------------------------------------------//
 void bouncingColoredBalls(int BallCount, CRGB colors[]) {
@@ -692,34 +690,35 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
 }
 
 //------------------------------------------------------//
-void meteorRain(CRGB c, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
-
+void meteorRain(byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
+  static unsigned int pct = 0;  // starting position
+  
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      
-      for ( int i=0; i<ledsPerSection+2*meteorSize; i++ ) {
-        if ( breakEffect ) return;
-    
-        // fade brightness all LEDs one step
-        for ( int j=0; j<ledsPerSection; j++ ) {
-          if ( (!meteorRandomDecay) || (random(10)>5) ) {
-            fadeToBlack(z, sectionStart[z][s]+j, meteorTrailDecay );        
-          }
+      unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      unsigned int pos = sectionStart[z][s] + ((pct * ledsPerSection+2*meteorSize) / 100);
+
+      // fade brightness all LEDs one step
+      for ( int j=0; j<ledsPerSection; j++ ) {
+        if ( (!meteorRandomDecay) || (random(10)>5) ) {
+          fadeToBlack(z, sectionStart[z][s]+j, meteorTrailDecay);
         }
-        
-        // draw meteor
-        for ( int j=0; j<meteorSize; j++ ) {
-          if ( (i-j < ledsPerSection) && (i-j >= 0) ) {
-            setPixel(z, sectionStart[z][s]+i-j, c);
-          } 
-        }
+      }
+
+      for ( int j=0; j<meteorSize; j++ ) {
+        if ( (pos-j < sectionEnd[z][s]) && (pos-j >= sectionStart[z][s]) ) {
+          setPixel(z, pos-j, CRGB::White);
+        } 
       }
     }
   }
   
   showStrip();
   delay(SpeedDelay);
+
+  if ( pct++ == 100 ) {
+    pct = 0;
+  }
 }
 
 // ***************************************

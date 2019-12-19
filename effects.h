@@ -15,6 +15,7 @@ extern int sectionEnd[][MAXSECTIONS];
 extern CRGB *leds[];
 
 extern boolean breakEffect;
+extern int gHue;
 
 // Fire effect static data (byte[numLEDs]) allocated at init
 extern byte *heat[];
@@ -24,11 +25,11 @@ void showStrip();
 
 // LED effects
 void RGBLoop();
-void FadeInOut(CRGB c);
+void FadeInOut();
 void Strobe(CRGB c, int FlashDelay=100);
 void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade=true);
 void CylonBounce(int EyeSize, int SpeedDelay);
-void NewKITT(CRGB c, int EyeSize, int SpeedDelay);
+void NewKITT(int EyeSize, int SpeedDelay);
 void CenterToOutside(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
 void OutsideToCenter(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
 void LeftToRight(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
@@ -39,8 +40,8 @@ void sinelon(CRGB c, int SpeedDelay=10);
 void bpm(int Hue, int SpeedDelay=10);
 void juggle(int SpeedDelay=10);
 void snowSparkle(int SparkleDelay, int SpeedDelay);
-void runningLights(CRGB c, int WaveDelay);
-void colorWipe(CRGB c, boolean Reverse=false, int SpeedDelay=10);
+void runningLights(int WaveDelay);
+void colorWipe(boolean Reverse=false, int SpeedDelay=10);
 void colorChase(CRGB c[], int Size=1, boolean Reverse=false, int SpeedDelay=250);
 void christmasChase(int Size, boolean Reverse=false, int SpeedDelay=250);
 void theaterChase(CRGB c, int SpeedDelay=250);
@@ -48,7 +49,7 @@ void rainbowCycle(int SpeedDelay=10);
 void rainbowChase(int SpeedDelay=250);
 void Fire(int Cooling, int Sparking, int SpeedDelay);
 void bouncingColoredBalls(int BallCount, CRGB colors[]);
-void meteorRain(CRGB c, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
+void meteorRain(byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
 
 // Common Functions
 void setPixel(int zone, int Pixel, CRGB c);

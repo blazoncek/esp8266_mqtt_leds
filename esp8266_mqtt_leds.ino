@@ -24,6 +24,7 @@
 
 #include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
 
+#define FASTLED_ALLOW_INTERRUPTS 0
 #define FASTLED_INTERRUPT_RETRY_COUNT 0
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #include "FastLED.h"
@@ -74,7 +75,6 @@ int gHue = 0;
 // 101-150 pixels -> 60 FPS
 // 151-200 pixels -> 75FPS
 // ...
-int varDelay;  // 1000ms / FPS
 
 // Update these with values suitable for your network.
 char mqtt_server[40] = "";
@@ -399,8 +399,6 @@ void setup() {
   ArduinoOTA.begin();
 
   // LED configuration set-up
-  varDelay = 15;  // 66 FPS
-
   for ( int i=0; i<numZones; i++ ) {
     
     // allocate memory for LED array
@@ -547,8 +545,7 @@ void loop() {
               }
 
     case 2  : {
-              FadeInOut(rRGB);
-              gHue += 8;
+              FadeInOut();
               break;
               }
               
@@ -563,13 +560,12 @@ void loop() {
               }
               
     case 5  : {
-              CylonBounce(4, 30);
+              CylonBounce(4, 10); // 100% / 1000 ms
               break;
               }
               
     case 6  : {
-              NewKITT(rRGB, 8, 15);
-              gHue += 8;
+              NewKITT(6, 8);
               break;
               }
               
@@ -597,21 +593,17 @@ void loop() {
               }
               
     case 11 : {
-              runningLights(rRGB, 50);
-              gHue++;
+              runningLights(30);
               break;
               }
               
     case 12 : {
-              colorWipe(rRGB, false, 15);
-              colorWipe(CRGB::Black, false, 15);
-              //colorWipe(CRGB::Black, true, varDelay); // reverse
-              gHue += 8;
+              colorWipe(false, 10);
               break;
               }
 
     case 13 : {
-              rainbowCycle(100);
+              rainbowCycle(50);
               break;
               }
 
@@ -647,7 +639,7 @@ void loop() {
               }
 
     case 19 : {
-              meteorRain(CRGB::White, 8, 128, true, 30);
+              meteorRain(4, 64, true, 10);
               break;
               }
 
@@ -687,9 +679,9 @@ void loop() {
 
 // Apply LED color changes & allow other tasks (MQTT callback, ...)
 void showStrip() {
-  yield();    // allow other tasks
-  if ( client.connected() )
-    client.loop(); //check MQTT
+//  yield();    // allow other tasks
+//  if ( client.connected() )
+//    client.loop(); //check MQTT
   
   // FastLED
   FastLED.show();
