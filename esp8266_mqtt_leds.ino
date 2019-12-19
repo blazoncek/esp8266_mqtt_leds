@@ -914,8 +914,6 @@ void mqtt_reconnect() {
 
   #if DEBUG
   Serial.print("Reconnecting.");
-  #else
-  digitalWrite(BUILTIN_LED, LOW); // LED on
   #endif
 
   // Loop until we're reconnected
@@ -923,9 +921,6 @@ void mqtt_reconnect() {
     // Attempt to connect
     if ( strlen(username)==0? client.connect(clientId): client.connect(clientId, username, password) ) {
       
-      #if !DEBUG
-      digitalWrite(BUILTIN_LED, HIGH); // LED off
-      #endif
       // Once connected, publish an announcement...
       DynamicJsonDocument doc(256);
       doc["mac"] = WiFi.macAddress(); //.toString().c_str();
@@ -952,9 +947,6 @@ void mqtt_reconnect() {
       delay(5000);
     }
   }
-
-  digitalWrite(BUILTIN_LED, HIGH);  // LED off
-
 }
 
 // reverses a string 'str' of length 'len' 
