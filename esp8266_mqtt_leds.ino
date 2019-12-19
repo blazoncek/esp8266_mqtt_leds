@@ -108,6 +108,7 @@ void saveConfigCallback();
 // main setup
 void setup() {
   char str[EEPROM_SIZE+1];
+  char tmp[20];
 
   Serial.begin(115200);
   delay(3000);
@@ -150,7 +151,9 @@ void setup() {
 
   // read data from EEPROM
   if ( strncmp(str,"esp",3)==0 ) {
-    sscanf(str,"esp%3s%1d",c_idx, numZones);
+    strncpy(tmp, &str[3], 3);
+    sprintf(c_idx, "%d", atoi(tmp)); 
+    numZones = str[6] - '0';
   } else {
     strcpy(c_idx, "0");
     numZones=0;
@@ -167,7 +170,7 @@ void setup() {
     char tmp[10];
     strncpy(zoneLEDType[i], &str[7+(6+3+3*MAXSECTIONS)*i], 6);  // LED type for zone
     zoneLEDType[i][7] = '\0';
-    strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 1], 3);
+    strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 6], 3);
     tmp[4] = '\0';
     numLEDs[i] = atoi(tmp);       // number of LEDs in zone
 
@@ -181,7 +184,7 @@ void setup() {
     // get starting pixels for each section (0=empty section (except for first))
     numSections[i] = 0;
     for ( int j=0; j<MAXSECTIONS; j++ ) {
-      strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 4 + 3*j], 3);
+      strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 6 + 3 + 3*j], 3);
       tmp[4] = '\0';
       sectionStart[i][j] = atoi(tmp);
       sectionEnd[i][j] = numLEDs[i];  // will be overwritten later
@@ -189,18 +192,21 @@ void setup() {
       if ( sectionStart[i][j] != 0 || j==0 ) {
         numSections[i]++;
         if ( j>0 )
-          sectionEnd[i][j-1] = sectionStart[i][j]-1;
-
-        #if DEBUG
-        Serial.print("Zone ");
-        Serial.print(i, DEC);
-        Serial.print(" section ");
-        Serial.print(j, DEC);
-        Serial.print(" start: ");
-        Serial.println(sectionStart[i][j],DEC);
-        #endif
+          sectionEnd[i][j-1] = sectionStart[i][j];
       }
     }
+    #if DEBUG
+    for ( int j=0; j<numSections[i]; j++ ) {
+      Serial.print("Zone: ");
+      Serial.print(i, DEC);
+      Serial.print(" section: ");
+      Serial.print(j, DEC);
+      Serial.print(" start: ");
+      Serial.print(sectionStart[i][j], DEC);
+      Serial.print(" end: ");
+      Serial.println(sectionEnd[i][j], DEC);
+    }
+    #endif
   }
 
 //----------------------------------------------------------
@@ -240,6 +246,7 @@ void setup() {
           strcpy(password, doc["password"]);
           #if DEBUG
           serializeJson(doc, Serial);
+          Serial.println("");
           #endif
         } else {
           #if DEBUG
@@ -341,7 +348,7 @@ void setup() {
     }
 
     // write idx info to EEPROM
-    sprintf(str,"esp%3s",c_idx);
+    sprintf(str, "esp%3s0", c_idx);
     for ( int i=0; i<strlen(str); i++ ) {
       EEPROM.write(i, str[i]);
     }
@@ -404,81 +411,90 @@ void setup() {
 
     // Initialize FastLED library
     // Since FastLED uses C++ templates, we can't use variables for pin values:
-    // const int dataPINs[] = {0, 4, 12, 15};  // D4, D2, D6, D8 (may also use TX for 5th zone)
-    // const int clockPINs[] = {2, 5, 14, 13}; // D3, D1, D5, D7; for WS2801 type (may also use RX for 5th zone)
+    // const int dataPINs[] = {2, 4, 12, 15};  // D4, D2, D6, D8 (may also use TX for 5th zone)
+    // const int clockPINs[] = {0, 5, 14, 13}; // D3, D1, D5, D7; for WS2801 type (may also use RX for 5th zone)
     // FastLED.addLeds<WS2812, dataPINs[i], GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
     
     if ( strcmp(zoneLEDType[i],"WS2801")==0 ) {
+      #if DEBUG
+      Serial.println("Adding WS2801 strip");
+      #endif
       switch (i) {
-        case 1:
-          FastLED.addLeds<WS2801, 0, 2, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+        case 0:
+          FastLED.addLeds<WS2801, 2, 0, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 2:
+        case 1:
           FastLED.addLeds<WS2801, 4, 5, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 3:
+        case 2:
           FastLED.addLeds<WS2801, 12, 14, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 4:
+        case 3:
           FastLED.addLeds<WS2801, 15, 13, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
       }
     } else if ( strcmp(zoneLEDType[i],"WS2811")==0 ) {
+      #if DEBUG
+      Serial.println("Adding WS2811 strip");
+      #endif
       switch (i) {
-        case 1:
+        case 0:
           FastLED.addLeds<WS2811, 0, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 2:
+        case 1:
           FastLED.addLeds<WS2811, 4, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 3:
+        case 2:
           FastLED.addLeds<WS2811, 12, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 4:
+        case 3:
           FastLED.addLeds<WS2811, 15, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
 /*
         // use the following for zones 5-8
-        case 5:
+        case 4:
           FastLED.addLeds<WS2811, 2, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 6:
+        case 5:
           FastLED.addLeds<WS2811, 5, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 7:
+        case 6:
           FastLED.addLeds<WS2811, 14, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 8:
+        case 7:
           FastLED.addLeds<WS2811, 13, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
 */
       }
     } else if ( strcmp(zoneLEDType[i],"WS2812")==0 ) {
+      #if DEBUG
+      Serial.println("Adding WS2812 strip");
+      #endif
       switch (i) {
-        case 1:
+        case 0:
           FastLED.addLeds<WS2812, 0, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 2:
+        case 1:
           FastLED.addLeds<WS2812, 4, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 3:
+        case 2:
           FastLED.addLeds<WS2812, 12, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 4:
+        case 3:
           FastLED.addLeds<WS2812, 15, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
 /*
         // use the following for zones 5-8
-        case 5:
+        case 4:
           FastLED.addLeds<WS2812, 2, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 6:
+        case 5:
           FastLED.addLeds<WS2812, 5, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 7:
+        case 6:
           FastLED.addLeds<WS2812, 14, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 8:
+        case 7:
           FastLED.addLeds<WS2812, 13, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
 */
@@ -524,7 +540,7 @@ void loop() {
               delay(100);
               break;
               }
-    
+
     case 1  : {
               RGBLoop();
               break;
@@ -609,7 +625,7 @@ void loop() {
 
     case 16 : {
               // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS), split on long strings, split point
-              Fire(55, 120, 15, true, 119);
+              Fire(55, 120, 30);
               break;
               }
 
@@ -677,8 +693,6 @@ void showStrip() {
 // MQTT callback function
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   char tmp[EEPROM_SIZE];
-  boolean lRestart = false;
-  boolean lSaveData = false;
   
   payload[length] = '\0'; // "just in case" fix
 /*
@@ -724,13 +738,20 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     
     if ( strstr(topic,"/command/idx") ) {
       
-      sprintf(c_idx,"%d",max(min((int)newPayload.toInt(),999),1));
+      sprintf(c_idx,"%3d",max(min((int)newPayload.toInt(),999),1));
       #if DEBUG
       Serial.print("New idx: ");
       Serial.println(c_idx);
       #endif
       
-      lSaveData = true;
+      // store configuration to EEPROM
+      EEPROM.begin(EEPROM_SIZE);
+      for ( int i=0; i<3; i++ ) {
+        EEPROM.write(i+3, c_idx[i]);
+      }
+      EEPROM.commit();
+      EEPROM.end();
+      delay(250);
   
     } else if ( strstr(topic,"/command/effect") ) {
       
@@ -741,25 +762,21 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       Serial.print("New effect: ");
       Serial.println(selectedEffect, DEC);
       #endif
-      
-      return;
   
-    } else if ( strstr(topic,"/command/leds/") ) {
+    } else if ( strstr(topic,"/command/zones") ) {
 
-      int zone = (int)(topic[strlen(topic)-1] - '0');
-      if ( zone < 0 || zone > MAXZONES-1 )
-        return;
-
-      numLEDs[zone] = max(min((int)newPayload.toInt(),999),1);
+      int lNumZones = max(min((int)newPayload.toInt(),8),1);
       #if DEBUG
-      Serial.print("New # of LEDs for zone ");
-      Serial.print(zone, DEC);
-      Serial.print(":");
-      Serial.println(numLEDs[zone], DEC);
+      Serial.print("New # of zones: ");
+      Serial.println(lNumZones, DEC);
       #endif
       
-      lSaveData = true;
-      lRestart = true;
+      // store configuration to EEPROM
+      EEPROM.begin(EEPROM_SIZE);
+      EEPROM.write(6, lNumZones+'0');
+      EEPROM.commit();
+      EEPROM.end();
+      delay(250);
       
     } else if ( strstr(topic,"/command/ledtype/") ) {
 
@@ -767,58 +784,96 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       if ( zone < 0 || zone > MAXZONES-1 )
         return;
 
-      newPayload.toCharArray(zoneLEDType[zone], 7);
+      newPayload.toCharArray(tmp, 7);
 
       #if DEBUG
       Serial.print("New LED type for zone ");
       Serial.print(zone, DEC);
-      Serial.print(":");
-      Serial.println(zoneLEDType[zone]);
+      Serial.print(": ");
+      Serial.println(tmp);
       #endif
 
-      lSaveData = true;
-      lRestart = true;
+      // store configuration to EEPROM
+      EEPROM.begin(EEPROM_SIZE);
+      for ( int i=0; i<6; i++ ) {
+        EEPROM.write(i + 7+(6+3+3*MAXSECTIONS)*zone, tmp[i]);
+      }
+      EEPROM.commit();
+      EEPROM.end();
+      delay(250);
   
+    } else if ( strstr(topic,"/command/leds/") ) {
+
+      int zone = (int)(topic[strlen(topic)-1] - '0');
+      if ( zone < 0 || zone > numZones-1 )
+        return;
+
+      int lNumLEDs = max(min((int)newPayload.toInt(),999),1);
+      #if DEBUG
+      Serial.print("New # of LEDs for zone ");
+      Serial.print(zone, DEC);
+      Serial.print(": ");
+      Serial.println(lNumLEDs, DEC);
+      #endif
+      
+      // store configuration to EEPROM
+      sprintf(tmp, "%3d", lNumLEDs);
+      EEPROM.begin(EEPROM_SIZE);
+      for ( int i=0; i<3; i++ ) {
+        EEPROM.write(i + 6 + 7+(6+3+3*MAXSECTIONS)*zone, tmp[i]);
+      }
+      EEPROM.commit();
+      EEPROM.end();
+      delay(250);
+      
     } else if ( strstr(topic,"/command/sections/") ) {
 
       int zone = (int)(topic[strlen(topic)-1] - '0');
       if ( zone < 0 || zone > MAXZONES-1 )
         return;
 
-      int section = 0;
+      int lSectionStart[MAXSECTIONS];
       int sections = 0;
       char *buf = strtok((char*)payload, ",;");
       while ( buf != NULL ) {
-        sections++;
-        sectionStart[zone][section] = atoi(buf);
+        lSectionStart[sections++] = atoi(buf);
+        buf = strtok(NULL, ",;");
 
         #if DEBUG
         Serial.print("New section for zone ");
         Serial.print(zone, DEC);
-        Serial.print(":");
-        Serial.println(sectionStart[zone][section]);
+        Serial.print(": ");
+        Serial.println(lSectionStart[sections-1]);
         #endif
-
-        buf = strtok(NULL, ",;");
       }
-      numSections[zone] = sections;
 
-      lSaveData = true;
-      lRestart = true;
+      // store configuration to EEPROM
+      EEPROM.begin(EEPROM_SIZE);
+      for ( int s=0; s<MAXSECTIONS; s++ ) {
+        sprintf(tmp, "%3d", s>=sections ? 0 : lSectionStart[s]);
+        for ( int i=0; i<3; i++ ) {
+          EEPROM.write(i + 6 + 3 + 3*s + 7+(6+3+3*MAXSECTIONS)*zone, tmp[i]);
+        }
+      }
+      EEPROM.commit();
+      EEPROM.end();
+      delay(250);
   
     } else if ( strstr(topic,"/command/restart") ) {
 
       #if DEBUG
       Serial.println("Restarting...");
       #endif
-      lRestart = true;
+      
+      // restart ESP
+      ESP.reset();
+      delay(2000);
       
     } else if ( strstr(topic,"/command/reset") ) {
 
       #if DEBUG
       Serial.println("Factory reset...");
       #endif
-      lRestart = true;
       
       // erase EEPROM
       EEPROM.begin(EEPROM_SIZE);
@@ -844,43 +899,10 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       Serial.println("WiFi disconnected");
       #endif
       
-    } else {
-      return;
-    }
-
-    if ( lSaveData ) {
-      // write configuration to buffer
-      sprintf(tmp,"esp%3s%1d", c_idx, numZones);                      // idx & # of zones
-      for ( int z=0; z<numZones; z++ ) {
-        strncpy(&tmp[7+(6+3+3*MAXSECTIONS)*z], zoneLEDType[z], 6);    // LED type
-        intToStr(numLEDs[z], &tmp[7+(6+3+3*MAXSECTIONS)*z + 1], 3);   // number of LEDS in zone
-        for ( int s=0; s<MAXSECTIONS; s++ ) {                         // section start
-          intToStr(s<numSections[z] ? sectionStart[z][s] : 0, &tmp[7+(6+3+3*MAXSECTIONS)*z + 4 + 3*s], 3);
-        }
-      }
-      tmp[7+(6+3+3*MAXSECTIONS)*numZones+1] = '\0';   // terminating 0
-      
-      #if DEBUG
-      Serial.println(tmp);
-      #endif
-      
-      // store configuration to EEPROM
-      EEPROM.begin(EEPROM_SIZE);
-      for ( int i=0; i<=strlen(tmp); i++ ) {
-        EEPROM.write(i, tmp[i]);
-      }
-      EEPROM.commit();
-      EEPROM.end();
-      delay(1000);
-      #if DEBUG
-      Serial.println("Written to EEPROM.");
-      #endif
-    }
-
-    if ( lRestart ) {
       // restart ESP
       ESP.reset();
       delay(2000);
+
     }
   }
 }

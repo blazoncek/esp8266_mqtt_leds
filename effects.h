@@ -46,7 +46,7 @@ void christmasChase(int Size, boolean Reverse=false, int SpeedDelay=250);
 void theaterChase(CRGB c, int SpeedDelay=250);
 void rainbowCycle(int SpeedDelay=10);
 void rainbowChase(int SpeedDelay=250);
-void Fire(int Cooling, int Sparking, int SpeedDelay, boolean SplitOnLong=false, int SplitPoint=119);
+void Fire(int Cooling, int Sparking, int SpeedDelay);
 void bouncingColoredBalls(int BallCount, CRGB colors[]);
 void meteorRain(CRGB c, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
 

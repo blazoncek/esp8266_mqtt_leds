@@ -212,13 +212,11 @@ void OutsideToCenter(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
   delay(SpeedDelay);
 }
 
-// used by NewKITT
+// used by NewKITT & Cylon Bounce
 void LeftToRight(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-
       for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]-EyeSize-2; i++ ) {
         if ( breakEffect ) return;
     
@@ -241,13 +239,11 @@ void LeftToRight(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
   delay(SpeedDelay);
 }
 
-// used by NewKITT
+// used by NewKITT & Cylon Bounce
 void RightToLeft(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-
       for ( int i=sectionEnd[z][s]-EyeSize-2; i>sectionStart[z][s]; i-- ) {
         if ( breakEffect ) return;
     
@@ -412,7 +408,7 @@ void colorWipe(CRGB c, boolean Reverse, int SpeedDelay) {
       for ( int i=0; i<ledsPerSection; i++ ) {
         if ( breakEffect ) return;
         if ( Reverse ) {
-          setPixel(z, sectionEnd[z][s] - i, c);
+          setPixel(z, sectionEnd[z][s] - i - 1, c);
         } else {
           setPixel(z, sectionStart[z][s] + i, c);
         }
@@ -442,17 +438,17 @@ void colorChase(CRGB c[], int Size, boolean Reverse, int SpeedDelay) {
           // turn LEDs on: ..####++++....####++++..   (size=4, . = black, + = c1, # = c2, Reverse)
           for ( int j=0; j<Size; j++ ) {
             if ( Reverse ) {
-              pos = sectionStart[z][s] + (window-q-1) + (Size-j-1);
+              pos = (window-q-1) + (Size-j-1);
               if ( (pos+Size)%window + i < ledsPerSection )
-                setPixel(z, (pos+Size)%window + i, c[0]);
+                setPixel(z, sectionStart[z][s] + (pos+Size)%window + i, c[0]);
               if ( pos%window + i < ledsPerSection )
-                setPixel(z, pos%window + i, c[1]);
+                setPixel(z, sectionStart[z][s] + pos%window + i, c[1]);
             } else {
-              pos = sectionStart[z][s] + q + j;
+              pos = q + j;
               if ( pos%window + i < ledsPerSection )
-                setPixel(z, pos%window + i, c[0]);
+                setPixel(z, sectionStart[z][s] + pos%window + i, c[0]);
               if ( (pos+Size)%window + i < ledsPerSection )
-                setPixel(z, (pos+Size)%window + i, c[1]);
+                setPixel(z, sectionStart[z][s] + (pos+Size)%window + i, c[1]);
             }
           }
         }
@@ -522,50 +518,42 @@ void rainbowCycle(int SpeedDelay) {
 
 //------------------------------------------------------//
 // borrowed from FastLED demo
-void Fire(int Cooling, int Sparking, int SpeedDelay, boolean SplitOnLong, int SplitPoint) {
+void Fire(int Cooling, int Sparking, int SpeedDelay) {
   int cooldown;
-  int nLeds, ledsPerSection;
 
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-    
-      // if we have a long LED strip make fire at both ends
-      if ( SplitOnLong == true && sectionEnd[z][s]-sectionStart[z][s] > SplitPoint ) {
-        nLeds = sectionEnd[z][s]-sectionStart[z][s] / 2;
-      } else {
-        nLeds = sectionEnd[z][s]-sectionStart[z][s];
-      }
       
       // Step 1.  Cool down every cell a little
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
-        cooldown = random(0, ((Cooling * 10) / nLeds) + 2);
+        cooldown = random(0, ((Cooling * 10) / ledsPerSection) + 2);
         
         if ( cooldown>heat[z][i] ) {
-          heat[z][i]=0;
+          heat[z][i] = ((s%2==0 && i<sectionStart[z][s]+7) || (s%2==1 && i>sectionEnd[z][s]-7)) ? 2 : 0;
         } else {
-          heat[z][i]=heat[z][i]-cooldown;
+          heat[z][i] = heat[z][i]-cooldown;
         }
       }
       
       // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-      for ( int k=nLeds-1; k>=2; k-- ) {
-        heat[z][sectionStart[z][s]+k] = (heat[z][sectionStart[z][s]+k - 1] + heat[z][sectionStart[z][s]+k - 2] + heat[z][sectionStart[z][s]+k - 2]) / 3;
-        if ( k==2 )
-          heat[z][sectionStart[z][s]+k-1] = heat[z][sectionStart[z][s]+k - 2] / 2;
-        if ( SplitOnLong == true && ledsPerSection > SplitPoint ) {
-          int j = ledsPerSection - k - 1;
-          heat[z][j] = (heat[z][j+1] + heat[z][j+2] + heat[z][j+2]) / 3;
+      for ( int k=ledsPerSection-1; k>=2; k-- ) {
+        if ( s%2 == 1 ) {
+          heat[z][sectionStart[z][s]+ledsPerSection-k] = (heat[z][sectionStart[z][s]+ledsPerSection-k + 1] + heat[z][sectionStart[z][s]+ledsPerSection-k + 2] + heat[z][sectionStart[z][s]+ledsPerSection-k + 2]) / 3;
+        } else {
+          heat[z][sectionStart[z][s]+k] = (heat[z][sectionStart[z][s]+k - 1] + heat[z][sectionStart[z][s]+k - 2] + heat[z][sectionStart[z][s]+k - 2]) / 3;
         }
+//        if ( k==2 )
+//          heat[z][sectionStart[z][s]+k-1] = heat[z][sectionStart[z][s]+k - 2] / 2;
       }
         
       // Step 3.  Randomly ignite new 'sparks' near the bottom
       if( random(255) < Sparking ) {
         int y = random(7);
-        heat[z][y] = heat[z][y] + random(160,255);
-        if ( SplitOnLong == true && ledsPerSection > SplitPoint ) {
-          y = random(7);
-          heat[z][ledsPerSection-y-1] = heat[z][ledsPerSection-y-1] + random(160,255);
+        if ( s%2 == 1 ) {
+          heat[z][sectionStart[z][s]+ledsPerSection-y-1] = heat[z][sectionStart[z][s]+ledsPerSection-y-1] + random(160,255);
+        } else {
+          heat[z][sectionStart[z][s]+y] = heat[z][sectionStart[z][s]+y] + random(160,255);
         }
       }
     
