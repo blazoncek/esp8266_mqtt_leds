@@ -317,11 +317,9 @@ void Twinkle(CRGB c, int SpeedDelay, boolean OnlyOne) {
 }
 
 //------------------------------------------------------//
-void TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne) {
+void TwinkleRandom(int SpeedDelay, boolean OnlyOne) {
 
-  for ( int i=0; i<Count; i++ ) {
-    Twinkle(CHSV(random(255),random(64,255),255), SpeedDelay, OnlyOne);
-  }
+  Twinkle(CHSV(random(255),random(64,255),255), SpeedDelay, OnlyOne);
 }
 
 //------------------------------------------------------//

@@ -24,7 +24,7 @@
 
 #include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
 
-#define FASTLED_ALLOW_INTERRUPTS 0
+//#define FASTLED_ALLOW_INTERRUPTS 0
 #define FASTLED_INTERRUPT_RETRY_COUNT 0
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #include "FastLED.h"
@@ -576,7 +576,7 @@ void loop() {
               }
               
     case 8  : { 
-              TwinkleRandom(10, 250, false);
+              TwinkleRandom(250, false);
               break;
               }
               
@@ -680,8 +680,8 @@ void loop() {
 // Apply LED color changes & allow other tasks (MQTT callback, ...)
 void showStrip() {
 //  yield();    // allow other tasks
-//  if ( client.connected() )
-//    client.loop(); //check MQTT
+  if ( client.connected() )
+    client.loop(); //check MQTT
   
   // FastLED
   FastLED.show();

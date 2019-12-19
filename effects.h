@@ -35,7 +35,7 @@ void OutsideToCenter(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
 void LeftToRight(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
 void RightToLeft(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
 void Twinkle(CRGB c, int SpeedDelay, boolean OnlyOne=false);
-void TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne=false);
+void TwinkleRandom(int SpeedDelay, boolean OnlyOne=false);
 void sinelon(CRGB c, int SpeedDelay=10);
 void bpm(int Hue, int SpeedDelay=10);
 void juggle(int SpeedDelay=10);
