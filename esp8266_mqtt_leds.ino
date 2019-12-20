@@ -175,9 +175,11 @@ void setup() {
     numLEDs[i] = atoi(tmp);       // number of LEDs in zone
 
     #if DEBUG
-    Serial.print("LED type: ");
-    Serial.println(zoneLEDType[i]);
-    Serial.print("# of LEDs: ");
+    Serial.print("Zone ");
+    Serial.print(i, DEC);
+    Serial.print(" LED type: ");
+    Serial.print(zoneLEDType[i]);
+    Serial.print(" and # of LEDs: ");
     Serial.println(numLEDs[i],DEC);
     #endif
 
@@ -570,51 +572,48 @@ void loop() {
               }
               
     case 7  : {
-              Twinkle(rRGB, 250, false);
-              gHue++;
+              Twinkle(100, false);
               break;
               }
               
     case 8  : { 
-              TwinkleRandom(250, false);
+              TwinkleRandom(100, false);
               break;
               }
               
     case 9  : {
-              // Sparkle
-              Twinkle(CRGB::White, 250, true);
+              Sparkle(50);
               break;
               }
                
     case 10 : {
-              // SnowSparkle
-              snowSparkle(30, random(60,210));
+              snowSparkle(50, random(50,200));
               break;
               }
               
     case 11 : {
-              runningLights(30);
+              runningLights(200); /* produces a lot of flickering */
               break;
               }
               
     case 12 : {
-              colorWipe(false, 10);
+              colorWipe(10);
               break;
               }
 
     case 13 : {
-              rainbowCycle(50);
+              rainbowCycle(200); /* produces a lot of flickering */
               break;
               }
 
     case 14 : {
-              theaterChase(rRGB, 200);
+              theaterChase(rRGB);
               gHue++;
               break;
               }
 
     case 15 : {
-              rainbowChase(200);
+              rainbowChase();
               break;
               }
 
@@ -639,30 +638,28 @@ void loop() {
               }
 
     case 19 : {
-              meteorRain(4, 64, true, 10);
+              meteorRain(4, 64, true, 20);
               break;
               }
 
     case 20 : {
-              sinelon(rRGB);
-              gHue++;
+              sinelon(10);
               break;
               }
 
     case 21 : {
-              bpm(gHue);
-              gHue++;
+              bpm(10);
               break;
               }
 
     case 22 : {
-              juggle();
+              juggle(10);
               break;
               }
 
     case 23 : {
-              CRGB colors[3] = { rRGB, CHSV((gHue+128)&255,255,255), CRGB::Black };
-              colorChase(colors, 4, true);
+              CRGB colors[3] = { rRGB, CHSV((gHue+128)&0xFF,255,255), CRGB::Black };
+              colorChase(colors, 4, 200, true);
               gHue++;
               break;
               }

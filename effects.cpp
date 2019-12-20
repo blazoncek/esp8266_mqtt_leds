@@ -176,7 +176,7 @@ void CenterToOutside(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 
       if ( Fade ) {
         for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]; i++ )
-          fadeToBlack(z, i, 64); // fade brightness of all LEDs in one step by 25%
+          fadeToBlack(z, i, 64); // fade brightness of all LEDs by 25%
       } else {
         setAll(z, s, CRGB::Black);
       }
@@ -292,7 +292,7 @@ void RightToLeft(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 }
 
 //------------------------------------------------------//
-void Twinkle(CRGB c, int SpeedDelay, boolean OnlyOne) {
+void Twinkle(int SpeedDelay, boolean OnlyOne) {
 
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
@@ -309,7 +309,7 @@ void Twinkle(CRGB c, int SpeedDelay, boolean OnlyOne) {
       }
       
       int pos = random16(sectionStart[z][s], sectionEnd[z][s]);
-      setPixel(z, pos, c);
+      setPixel(z, pos, CHSV(gHue++, 255, 255));
     }
   }
   showStrip();
@@ -319,42 +319,47 @@ void Twinkle(CRGB c, int SpeedDelay, boolean OnlyOne) {
 //------------------------------------------------------//
 void TwinkleRandom(int SpeedDelay, boolean OnlyOne) {
 
-  Twinkle(CHSV(random(255),random(64,255),255), SpeedDelay, OnlyOne);
+  gHue = random8();
+  Twinkle(SpeedDelay, OnlyOne);
 }
 
 //------------------------------------------------------//
 // borrowed from FastLED's DemoReel
-void sinelon(CRGB c, int SpeedDelay) {
+void sinelon(int SpeedDelay) {
 
   // a colored dot sweeping back and forth, with fading trails
   for ( int z=0; z<numZones; z++ ) {
     fadeToBlackBy(leds[z], numLEDs[z], 16);
     for ( int s=0; s<numSections[z]; s++ ) {
       int pos = beatsin16(13, sectionStart[z][s], sectionEnd[z][s]-1);
-      leds[z][pos] = c;
+      leds[z][pos] = CHSV(gHue, 255, 255);
     }
   }
   showStrip();
   delay(SpeedDelay);
+
+  gHue++;
 }
 
 //------------------------------------------------------//
 // borrowed from FastLED's DemoReel
-void bpm(int Hue, int SpeedDelay) {
+void bpm(int SpeedDelay) {
 
   // colored stripes pulsing at a defined Beats-Per-Minute (BPM)
   uint8_t BeatsPerMinute = 62;
   CRGBPalette16 palette = PartyColors_p;
-  uint8_t beat = beatsin8(BeatsPerMinute, 64, 255);
+  uint8_t beat = beatsin8(BeatsPerMinute, 32, 255);
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) { //9948
-        leds[z][i] = ColorFromPalette(palette, Hue+((i-sectionStart[z][s])*2), beat-Hue+((i-sectionStart[z][s])*10));
+        leds[z][i] = ColorFromPalette(palette, gHue+((i-sectionStart[z][s])*2), beat-gHue+((i-sectionStart[z][s])*10));
       }
     }
   }
   showStrip();
   delay(SpeedDelay);
+
+  gHue++;
 }
 
 //------------------------------------------------------//
@@ -376,6 +381,23 @@ void juggle(int SpeedDelay) {
   delay(SpeedDelay);
 }
 
+
+//------------------------------------------------------//
+void Sparkle(int SpeedDelay) {
+
+  for ( int z=0; z<numZones; z++ ) {
+    for ( int s=0; s<numSections[z]; s++ ) {
+      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+
+      setAll(z, s, CRGB::Black);
+      
+      int pos = random16(sectionStart[z][s], sectionEnd[z][s]);
+      setPixel(z, pos, CRGB::White);
+    }
+  }
+  showStrip();
+  delay(SpeedDelay);
+}
 
 //------------------------------------------------------//
 void snowSparkle(int SparkleDelay, int SpeedDelay) {
@@ -408,7 +430,7 @@ void runningLights(int WaveDelay) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       
       for ( int i=0; i<ledsPerSection; i++ ) {
-        float level = sin8( (i*1024/ledsPerSection + offset) & 0xFF );
+        unsigned int level = sin8( (i*1280/ledsPerSection + offset) & 0xFF );  // 5 waves
         setPixel(z, sectionStart[z][s] + i, CHSV(gHue, 255, level));
       }
     }
@@ -418,11 +440,11 @@ void runningLights(int WaveDelay) {
   delay(WaveDelay);
 
   gHue++;
-  ++offset &= 0xFF;
+  offset = (offset + 21) & 0xFF;
 }
 
 //------------------------------------------------------//
-void colorWipe(boolean Reverse, int SpeedDelay) {
+void colorWipe(int SpeedDelay, boolean Reverse) {
   static unsigned int pct = 0;  // starting position
   static boolean blank = false;
   CRGB c = CHSV(gHue, 255, 255);
@@ -431,8 +453,14 @@ void colorWipe(boolean Reverse, int SpeedDelay) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int pos = sectionStart[z][s] + ((pct * ledsPerSection) / 100);
-
-      setPixel(z, pos, blank ? CRGB::Black : c);
+      if ( pct > 0 && ledsPerSection > 100 ) {
+        for ( int i=sectionStart[z][s] + (((pct-1) * ledsPerSection) / 100); i<pos; i++ ) {
+          setPixel(z, pos, blank ? CRGB::Black : c);
+        }
+      } else {
+        if ( pos < sectionEnd[z][s] )
+          setPixel(z, pos, blank ? CRGB::Black : c);
+      }
     }
   }
   
@@ -457,7 +485,7 @@ void colorWipe(boolean Reverse, int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void colorChase(CRGB c[], int Size, boolean Reverse, int SpeedDelay) {
+void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
   int window = 3*Size;  // c[] has 3 elements
   int pos;
   
@@ -497,57 +525,51 @@ void colorChase(CRGB c[], int Size, boolean Reverse, int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void christmasChase(int Size, boolean Reverse, int SpeedDelay) {
+void christmasChase(int Size, int SpeedDelay, boolean Reverse) {
   CRGB c[3] = {CRGB::Red, CRGB::Green, CRGB::White};
-  colorChase(c, Size, Reverse, SpeedDelay);
+  colorChase(c, Size, SpeedDelay, Reverse);
 }
 
 //------------------------------------------------------//
 void theaterChase(CRGB cColor, int SpeedDelay) {
   CRGB c[3] = {cColor, CRGB::Black, CRGB::Black};
-  colorChase(c, 1, false, SpeedDelay);
+  colorChase(c, 1, SpeedDelay, false);
 }
 
 //------------------------------------------------------//
 void rainbowChase(int SpeedDelay) {
-  static int Hue = 0;
-  CRGB c;
+  static int q = 0;
 
-  //each call shifts the hue a bit
-  ++Hue &= 0xFF;
-  for ( int q=0; q<3; q++ ) {
-    for ( int z=0; z<numZones; z++ ) {
-      for ( int s=0; s<numSections[z]; s++ ) {
-        setAll(z, s, CRGB::Black); // clear each zone
-        int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-        
-        for ( int i=0; i<ledsPerSection; i=i+3 ) {
-          c = CHSV(((i * 256 / ledsPerSection) + Hue) & 255, 255, 255);
-          setPixel(z, sectionStart[z][s]+i+q, c);        //turn every third pixel on
-        }
+  for ( int z=0; z<numZones; z++ ) {
+    for ( int s=0; s<numSections[z]; s++ ) {
+      setAll(z, s, CRGB::Black); // clear each zone
+      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      
+      for ( int i=0; i<ledsPerSection; i=i+3 ) {
+        setPixel(z, sectionStart[z][s]+i+q, CHSV(((i * 256 / ledsPerSection) + gHue) & 255, 255, 255));
       }
-      showStrip();
-      delay(SpeedDelay);
     }
   }
+  showStrip();
+  delay(SpeedDelay);
+
+  ++q %= 3;
+  gHue++;
 }
 
 //------------------------------------------------------//
 void rainbowCycle(int SpeedDelay) {
-//  static int Hue = 0;
-//  CRGB c;
 
-  //each call shifts the hue a bit
-//  ++Hue &= 0xFF;
   for ( int z=0; z<numZones; z++ ) {
-//    fill_rainbow(leds[z], numLEDs[z], gHue++);
+    fill_rainbow(leds[z], numLEDs[z], gHue);
+/*
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       for ( int i=0; i<ledsPerSection; i++ ) {
-//        c = CHSV(((i * 256 / ledsPerSection) + (gHue & 0xFF)) & 255, 255, 255);
         setPixel(z, sectionStart[z][s] + i, CHSV(((i * 256 / ledsPerSection) + (gHue & 0xFF)) & 255, 255, 255));
       }
     }
+*/
   }
   showStrip();
   delay(SpeedDelay);
@@ -562,13 +584,15 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+
+      // Odd an even sections are 'burnng' from the oposite ends.
       
       // Step 1.  Cool down every cell a little
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
         cooldown = random(0, ((Cooling * 10) / ledsPerSection) + 2);
         
         if ( cooldown>heat[z][i] ) {
-          heat[z][i] = ((s%2==0 && i<sectionStart[z][s]+7) || (s%2==1 && i>sectionEnd[z][s]-7)) ? 2 : 0;
+          heat[z][i] = ((s%2==0 && i<sectionStart[z][s]+7) || (s%2==1 && i>sectionEnd[z][s]-8)) ? 2 : 0;
         } else {
           heat[z][i] = heat[z][i]-cooldown;
         }
@@ -581,8 +605,8 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
         } else {
           heat[z][sectionStart[z][s]+k] = (heat[z][sectionStart[z][s]+k - 1] + heat[z][sectionStart[z][s]+k - 2] + heat[z][sectionStart[z][s]+k - 2]) / 3;
         }
-//        if ( k==2 )
-//          heat[z][sectionStart[z][s]+k-1] = heat[z][sectionStart[z][s]+k - 2] / 2;
+        if ( k==2 )
+          heat[z][sectionStart[z][s]+k-1] = heat[z][sectionStart[z][s]+k - 2] / 2;
       }
         
       // Step 3.  Randomly ignite new 'sparks' near the bottom
@@ -604,26 +628,6 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
   showStrip();
   delay(SpeedDelay);
 }
-
-/*
-void setPixelHeatColor(int zone, int Pixel, byte temperature) {
-  // Scale 'heat' down from 0-255 to 0-191
-  byte t192 = round((temperature/255.0)*191);
- 
-  // calculate ramp up from
-  byte heatramp = t192 & 0x3F; // 0..63
-  heatramp <<= 2; // scale up to 0..252
- 
-  // figure out which third of the spectrum we're in:
-  if( t192 > 0x80) {                     // hottest
-    setPixel(zone, Pixel, CRGB(255, 255, heatramp));
-  } else if( t192 > 0x40 ) {             // middle
-    setPixel(zone, Pixel, CRGB(255, heatramp, 0));
-  } else {                               // coolest
-    setPixel(zone, Pixel, CRGB(heatramp, 0, 0));
-  }
-}
-*/
 
 //------------------------------------------------------//
 void bouncingColoredBalls(int BallCount, CRGB colors[]) {
@@ -716,6 +720,7 @@ void meteorRain(byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDeca
 
   if ( pct++ == 100 ) {
     pct = 0;
+    delay(100); // add a bit of delay between meteors
   }
 }
 
