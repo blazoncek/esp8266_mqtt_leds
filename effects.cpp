@@ -88,26 +88,6 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
         setPixel(z, StartPoint + i, c);
         setPixel(z, Start2ndEye + i, c);
       }
-/*
-      if ( !Fade ) {
-        // blink
-        delay(random(250,750));
-        for ( i=0; i<EyeWidth; i++ ) {
-          setPixel(z, StartPoint + i, CRGB::Black);
-          setPixel(z, Start2ndEye + i, CRGB::Black);
-        }
-        showStrip();
-        delay(random(50,150));
-      
-        // show eyes
-        for(i = 0; i < EyeWidth; i++) {
-          setPixel(z, StartPoint + i, c);
-          setPixel(z, Start2ndEye + i, c);
-        }
-        showStrip();
-        delay(random(500,2500));
-      }
-*/
     }
   }
   showStrip();
