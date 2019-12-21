@@ -562,12 +562,12 @@ void loop() {
               }
               
     case 5  : {
-              CylonBounce(4, 10); // 100% / 1000 ms
+              CylonBounce(8, 10); // 100% / 1000 ms
               break;
               }
               
     case 6  : {
-              NewKITT(6, 8);
+              NewKITT(12, 8);
               break;
               }
               
@@ -592,7 +592,7 @@ void loop() {
               }
               
     case 11 : {
-              runningLights(200); /* produces a lot of flickering */
+              runningLights(50); /* produces a lot of flickering */
               break;
               }
               
@@ -602,7 +602,7 @@ void loop() {
               }
 
     case 13 : {
-              rainbowCycle(200); /* produces a lot of flickering */
+              rainbowCycle(100); /* produces a lot of flickering */
               break;
               }
 
@@ -638,7 +638,7 @@ void loop() {
               }
 
     case 19 : {
-              meteorRain(4, 64, true, 20);
+              meteorRain(8, 64, true, 10);
               break;
               }
 

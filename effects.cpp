@@ -72,14 +72,14 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
   int i;
 
   for ( int z=0; z<numZones; z++ ) {
+
+    if ( Fade )
+      fadeToBlackBy(leds[z], numLEDs[z], 196);
+    else
+      fill_solid(leds[z], numLEDs[z], CRGB::Black);
+
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-
-      if ( Fade )
-        fadeToBlack(z, s, 196);
-      else
-        setAll(z, s, CRGB::Black); // Set all black
-        
       int StartPoint = random16(sectionStart[z][s], sectionEnd[z][s] - (2*EyeWidth) - EyeSpace);
       int Start2ndEye = StartPoint + EyeWidth + EyeSpace;
 
@@ -115,15 +115,17 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
 }
 
 //------------------------------------------------------//
-void CylonBounce(int EyeSize, int SpeedDelay) {
+void CylonBounce(int EyeSizePct, int SpeedDelay) {
   CRGB c = CRGB::Red;
   static boolean dir = false; // start left-to-right
   static unsigned int pct = 0;  // starting position
+  unsigned int EyeSize;
   
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize-2)) / 100); // get position using 'sawtooth' BPM function
+      EyeSize = EyeSizePct * ledsPerSection / 100;
+      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize-2)) / 100);
 
       setAll(z, s, CRGB::Black);
 
@@ -151,11 +153,11 @@ void CylonBounce(int EyeSize, int SpeedDelay) {
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 //------------------------------------------------------//
-void NewKITT(int EyeSize, int SpeedDelay){
+void NewKITT(int EyeSizePct, int SpeedDelay){
   CRGB c = CHSV(gHue, 255, 255);
 
   // Call the current pattern function once, updating the 'leds' array
-  gPatterns[gCurrentPattern](c, EyeSize, SpeedDelay, true);
+  gPatterns[gCurrentPattern](c, EyeSizePct, SpeedDelay, true);
 
 }
 
@@ -166,20 +168,21 @@ void nextPattern() {
 }
 
 // used by NewKITT
-void CenterToOutside(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
+void CenterToOutside(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   static unsigned int pct = 50;  // starting position
+  unsigned int EyeSize;
   
   for ( int z=0; z<numZones; z++ ) {
+
+    if ( Fade )
+      fadeToBlackBy(leds[z], numLEDs[z], 64);
+    else
+      fill_solid(leds[z], numLEDs[z], CRGB::Black);
+
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      EyeSize = EyeSizePct * ledsPerSection / 100;
       unsigned int pos = ((pct * (ledsPerSection-EyeSize)) / 100);
-
-      if ( Fade ) {
-        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]; i++ )
-          fadeToBlack(z, i, 64); // fade brightness of all LEDs by 25%
-      } else {
-        setAll(z, s, CRGB::Black);
-      }
 
       for ( int j=0; j<EyeSize; j++ ) {
         setPixel(z, sectionStart[z][s]+pos+j, c); 
@@ -198,20 +201,21 @@ void CenterToOutside(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 }
 
 // used by NewKITT
-void OutsideToCenter(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
+void OutsideToCenter(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   static unsigned int pct = 0;  // starting position
+  unsigned int EyeSize;
   
   for ( int z=0; z<numZones; z++ ) {
+
+    if ( Fade )
+      fadeToBlackBy(leds[z], numLEDs[z], 64);
+    else
+      fill_solid(leds[z], numLEDs[z], CRGB::Black);
+
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      EyeSize = EyeSizePct * ledsPerSection / 100;
       unsigned int pos = ((pct * (ledsPerSection-EyeSize)) / 100);
-
-      if ( Fade ) {
-        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]; i++ )
-          fadeToBlack(z, i, 64); // fade brightness of all LEDs in one step by 25%
-      } else {
-        setAll(z, s, CRGB::Black);
-      }
 
       for ( int j=1; j<=EyeSize; j++ ) {
         setPixel(z, sectionStart[z][s]+pos+j, c); 
@@ -230,20 +234,21 @@ void OutsideToCenter(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 }
 
 // used by NewKITT & Cylon Bounce
-void LeftToRight(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
+void LeftToRight(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   static unsigned int pct = 0;  // starting position
+  unsigned int EyeSize;
   
   for ( int z=0; z<numZones; z++ ) {
+
+    if ( Fade )
+      fadeToBlackBy(leds[z], numLEDs[z], 64);
+    else
+      fill_solid(leds[z], numLEDs[z], CRGB::Black);
+
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      EyeSize = EyeSizePct * ledsPerSection / 100;
       unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
-
-      if ( Fade ) {
-        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]; i++ )
-          fadeToBlack(z, i, 64); // fade brightness of all LEDs in one step by 25%
-      } else {
-        setAll(z, s, CRGB::Black);
-      }
 
       for ( int j=0; j<EyeSize; j++ ) {
         setPixel(z, pos+j, c); 
@@ -261,20 +266,21 @@ void LeftToRight(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 }
 
 // used by NewKITT & Cylon Bounce
-void RightToLeft(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
+void RightToLeft(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   static unsigned int pct = 100;  // starting position
+  unsigned int EyeSize;
   
   for ( int z=0; z<numZones; z++ ) {
+
+    if ( Fade )
+      fadeToBlackBy(leds[z], numLEDs[z], 64);
+    else
+      fill_solid(leds[z], numLEDs[z], CRGB::Black);
+
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      EyeSize = EyeSizePct * ledsPerSection / 100;
       unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
-
-      if ( Fade ) {
-        for ( int i=sectionStart[z][s]; i < sectionEnd[z][s]; i++ )
-          fadeToBlack(z, i, 64); // fade brightness of all LEDs in one step by 25%
-      } else {
-        setAll(z, s, CRGB::Black);
-      }
 
       for ( int j=0; j<EyeSize; j++ ) {
         setPixel(z, pos+j, c); 
@@ -295,19 +301,14 @@ void RightToLeft(CRGB c, int EyeSize, int SpeedDelay, boolean Fade) {
 void Twinkle(int SpeedDelay, boolean OnlyOne) {
 
   for ( int z=0; z<numZones; z++ ) {
+
+    if ( !OnlyOne )
+      fadeToBlackBy(leds[z], numLEDs[z], 64);
+    else
+      fill_solid(leds[z], numLEDs[z], CRGB::Black);
+
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-
-      if ( OnlyOne ) { 
-        for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
-          setPixel(z, i, CRGB::Black);
-        }
-      } else {
-        for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
-          fadeToBlack(z, i, 32);  // 12.5% fade
-        }
-      }
-      
       int pos = random16(sectionStart[z][s], sectionEnd[z][s]);
       setPixel(z, pos, CHSV(gHue++, 255, 255));
     }
@@ -318,7 +319,6 @@ void Twinkle(int SpeedDelay, boolean OnlyOne) {
 
 //------------------------------------------------------//
 void TwinkleRandom(int SpeedDelay, boolean OnlyOne) {
-
   gHue = random8();
   Twinkle(SpeedDelay, OnlyOne);
 }
@@ -542,11 +542,13 @@ void rainbowChase(int SpeedDelay) {
 
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
-      setAll(z, s, CRGB::Black); // clear each zone
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      
-      for ( int i=0; i<ledsPerSection; i=i+3 ) {
-        setPixel(z, sectionStart[z][s]+i+q, CHSV(((i * 256 / ledsPerSection) + gHue) & 255, 255, 255));
+
+      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue);
+      for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
+        if ( i%3 != q ) {
+          setPixel(z,i,CRGB::Black);
+        }
       }
     }
   }
@@ -561,15 +563,10 @@ void rainbowChase(int SpeedDelay) {
 void rainbowCycle(int SpeedDelay) {
 
   for ( int z=0; z<numZones; z++ ) {
-    fill_rainbow(leds[z], numLEDs[z], gHue);
-/*
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      for ( int i=0; i<ledsPerSection; i++ ) {
-        setPixel(z, sectionStart[z][s] + i, CHSV(((i * 256 / ledsPerSection) + (gHue & 0xFF)) & 255, 255, 255));
-      }
+      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue);
     }
-*/
   }
   showStrip();
   delay(SpeedDelay);
@@ -692,12 +689,14 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
 }
 
 //------------------------------------------------------//
-void meteorRain(byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
+void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
   static unsigned int pct = 0;  // starting position
+  unsigned int meteorSize;
   
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      meteorSize = ledsPerSection * meteorSizePct / 100;
       unsigned int pos = sectionStart[z][s] + ((pct * ledsPerSection+2*meteorSize) / 100);
 
       // fade brightness all LEDs one step

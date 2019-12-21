@@ -28,12 +28,12 @@ void RGBLoop();
 void FadeInOut();
 void Strobe(CRGB c, int FlashDelay=50);
 void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade=true);
-void CylonBounce(int EyeSize, int SpeedDelay=10);
-void NewKITT(int EyeSize, int SpeedDelay);
-void CenterToOutside(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
-void OutsideToCenter(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
-void LeftToRight(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
-void RightToLeft(CRGB c, int EyeSize, int SpeedDelay=10, boolean Fade=true);
+void CylonBounce(int EyeSizePct, int SpeedDelay=10);
+void NewKITT(int EyeSizePct, int SpeedDelay);
+void CenterToOutside(CRGB c, int EyeSizePct, int SpeedDelay=10, boolean Fade=true);
+void OutsideToCenter(CRGB c, int EyeSizePct, int SpeedDelay=10, boolean Fade=true);
+void LeftToRight(CRGB c, int EyeSizePct, int SpeedDelay=10, boolean Fade=true);
+void RightToLeft(CRGB c, int EyeSizePct, int SpeedDelay=10, boolean Fade=true);
 void Twinkle(int SpeedDelay, boolean OnlyOne=false);
 void TwinkleRandom(int SpeedDelay, boolean OnlyOne=false);
 void sinelon(int SpeedDelay=10);
@@ -50,7 +50,7 @@ void rainbowCycle(int SpeedDelay=10);
 void rainbowChase(int SpeedDelay=200);
 void Fire(int Cooling, int Sparking, int SpeedDelay);
 void bouncingColoredBalls(int BallCount, CRGB colors[]);
-void meteorRain(byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
+void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
 
 // Common Functions
 void setPixel(int zone, int Pixel, CRGB c);
