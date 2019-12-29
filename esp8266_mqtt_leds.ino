@@ -65,10 +65,25 @@ CRGB *leds[MAXZONES];
 // ....
 #define EEPROM_SIZE (7+(6+3+3*MAXSECTIONS)*MAXZONES)   // limit is 512 bytes
 
+typedef struct ZONE_DATA_T {
+  char ledType[6];
+  char zoneLEDs[3];
+  char sectionStart[MAXSECTIONS][3];
+} zone_data_t;
+
+typedef struct EEPROM_DATA_T {
+  const char esp[3];
+  char idx[3];
+  char nZones;
+  zone_data_t zoneData[MAXZONES];
+} eeprom_data_t;
+
 // global variables
 
-int selectedEffect = -1;
+int selectedEffect = 0;
 int gHue = 0;
+int gBrightness = 255;
+
 // Effect's speed should be between 30 FPS and 60 FPS, depending on length (density) of LED strip
 // <51 pixels -> 30 FPS
 // 51-100 pixels -> 45 FPS
@@ -120,6 +135,7 @@ void setup() {
   sprintf(clientId, "led-%s", &mac_address[6]);
   WiFi.hostname(clientId);
   WiFi.mode(WIFI_STA);
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
 
   #if DEBUG
   Serial.println("");
@@ -542,7 +558,7 @@ void loop() {
               }
 
     case 1  : {
-              RGBLoop();
+              solidColor();
               break;
               }
 
@@ -686,6 +702,18 @@ void showStrip() {
 
 //---------------------------------------------------
 // MQTT callback function
+//------
+// Possible MQTT topics with message are:
+//   - domoticz/out                      [{idx=ID,svalue1="effect*10"}] - JSON struct
+//   - MQTTBASE/clientID/command/restart []          - restart ESP
+//   - MQTTBASE/clientID/command/reset   [1]         - factory reset (clear all settings)
+//   - MQTTBASE/clientID/command/effect  [effectID]  - change effect
+//   - MQTTBASE/clientID/set/effect      [effectID]  - change effect
+//   - MQTTBASE/clientID/set/idx         [ID]        - Domoticz IDX
+//   - MQTTBASE/clientID/set/ledtype/X   [WS2801|WS2811|WS2812] - attached LED type to zone X (applied after restart)
+//   - MQTTBASE/clientID/set/leds/X      [n]         - attached # of LEDs to zone X (applied after restart)
+//   - MQTTBASE/clientID/set/sections/X  [a,b,c,...] - a,b,c,... = start # of 1st LED in each section of zone X (applied after restart)
+//------
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   char tmp[EEPROM_SIZE];
   
@@ -704,6 +732,9 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   // convert to String & int for easier handling
   String newPayload = String((char *)payload);
 
+  // client
+  sprintf(tmp, "%s/%s", MQTTBASE, clientId);
+
   if ( strcmp(topic,"domoticz/out") == 0 ) {
 
     DynamicJsonDocument doc(2048);
@@ -716,7 +747,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   
       // apply new effect
       selectedEffect = (actionId/10);
-      breakEffect = true;
+      gHue = 0;           // reset hue
+      breakEffect = true; // interrupt current effect
   
       // Publish effect state
       sprintf(tmp, "%s/effect", outTopic);
@@ -729,9 +761,9 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       #endif
     }
 
-  } else if ( strstr(topic, MQTTBASE) ) {
+  } else if ( strstr(topic, tmp) ) {
     
-    if ( strstr(topic,"/command/idx") ) {
+    if ( strstr(topic,"/set/idx") ) {
       
       sprintf(c_idx,"%3d",max(min((int)newPayload.toInt(),999),1));
       #if DEBUG
@@ -748,17 +780,36 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       EEPROM.end();
       delay(250);
   
-    } else if ( strstr(topic,"/command/effect") ) {
+    } else if ( strstr(topic,"/set/effect") || strstr(topic,"/command/effect")) {
       
       selectedEffect = (int)newPayload.toInt();
-      breakEffect = true;
+      gHue = 0;           // reset hue
+      breakEffect = true; // interrupt current effect
       
       #if DEBUG
       Serial.print("New effect: ");
       Serial.println(selectedEffect, DEC);
       #endif
   
-    } else if ( strstr(topic,"/command/zones") ) {
+    } else if ( strstr(topic,"/set/hue") ) {
+      
+      gHue = min(max((int)newPayload.toInt(),0),255);
+      
+      #if DEBUG
+      Serial.print("New hue: ");
+      Serial.println(gHue, DEC);
+      #endif
+  
+    } else if ( strstr(topic,"/set/brightness") ) {
+      
+      gBrightness = min(max((int)newPayload.toInt(),0),255);
+      
+      #if DEBUG
+      Serial.print("New brightness: ");
+      Serial.println(gBrightness, DEC);
+      #endif
+  
+    } else if ( strstr(topic,"/set/zones") ) {
 
       int lNumZones = max(min((int)newPayload.toInt(),8),1);
       #if DEBUG
@@ -773,7 +824,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       EEPROM.end();
       delay(250);
       
-    } else if ( strstr(topic,"/command/ledtype/") ) {
+    } else if ( strstr(topic,"/set/ledtype/") ) {
 
       int zone = (int)(topic[strlen(topic)-1] - '0');
       if ( zone < 0 || zone > MAXZONES-1 )
@@ -797,7 +848,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       EEPROM.end();
       delay(250);
   
-    } else if ( strstr(topic,"/command/leds/") ) {
+    } else if ( strstr(topic,"/set/leds/") ) {
 
       int zone = (int)(topic[strlen(topic)-1] - '0');
       if ( zone < 0 || zone > numZones-1 )
@@ -821,7 +872,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       EEPROM.end();
       delay(250);
       
-    } else if ( strstr(topic,"/command/sections/") ) {
+    } else if ( strstr(topic,"/set/sections/") ) {
 
       int zone = (int)(topic[strlen(topic)-1] - '0');
       if ( zone < 0 || zone > MAXZONES-1 )
@@ -864,7 +915,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       ESP.reset();
       delay(2000);
       
-    } else if ( strstr(topic,"/command/reset") ) {
+    } else if ( strstr(topic,"/command/reset") && (int)(payload[strlen((char*)payload)-1] - '0')==1 ) {
 
       #if DEBUG
       Serial.println("Factory reset...");
@@ -929,6 +980,8 @@ void mqtt_reconnect() {
       
       // ... and resubscribe
       sprintf(tmp, "%s/%s/command/#", MQTTBASE, clientId);
+      client.subscribe(tmp);
+      sprintf(tmp, "%s/%s/set/#", MQTTBASE, clientId);
       client.subscribe(tmp);
       client.subscribe("domoticz/out");
       #if DEBUG

@@ -13,6 +13,17 @@ int gCurrentPattern = 0;
 // *************************
 
 //------------------------------------------------------//
+void solidColor() {
+  for ( int z=0; z<numZones; z++ ) {
+    for ( int p=0; p<numLEDs[z]; p++ ) {
+      setPixel(z, p, CHSV(gHue,255,gBrightness));
+    }
+  }
+  showStrip();
+  FastLED.delay(10);  
+}
+
+//------------------------------------------------------//
 void RGBLoop() {
   static int count = 0;
   
@@ -41,7 +52,7 @@ void FadeInOut() {
     }
   }
   showStrip();
-  delay(10);
+  FastLED.delay(10);
 
   ++k &= 0xFF;
   if ( k==0 ) gHue += 8;
@@ -56,7 +67,7 @@ void Strobe(CRGB c, int FlashDelay) {
     }
   }
   showStrip();
-  delay(FlashDelay/2);
+  FastLED.delay(FlashDelay/2);
   
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
@@ -64,7 +75,7 @@ void Strobe(CRGB c, int FlashDelay) {
     }
   }
   showStrip();
-  delay(FlashDelay/2);
+  FastLED.delay(FlashDelay/2);
 }
 
 //------------------------------------------------------//
@@ -91,7 +102,7 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
     }
   }
   showStrip();
-  delay(random(500,2500));
+  FastLED.delay(random16(500,2500));
 }
 
 //------------------------------------------------------//
@@ -118,7 +129,7 @@ void CylonBounce(int EyeSizePct, int SpeedDelay) {
   }
   
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   if ( dir ) {
     pct--;
@@ -172,7 +183,7 @@ void CenterToOutside(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   }
   
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   if ( pct-- == 0 ) {
     pct = 50;
@@ -205,7 +216,7 @@ void OutsideToCenter(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   }
   
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   if ( pct++ == 50 ) {
     pct = 0;
@@ -237,7 +248,7 @@ void LeftToRight(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   }
   
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   if ( pct++ == 100 ) {
     pct = 0;
@@ -269,7 +280,7 @@ void RightToLeft(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   }
   
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   if ( pct-- == 0 ) {
     pct = 100;
@@ -294,7 +305,7 @@ void Twinkle(int SpeedDelay, boolean OnlyOne) {
     }
   }
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 }
 
 //------------------------------------------------------//
@@ -316,7 +327,7 @@ void sinelon(int SpeedDelay) {
     }
   }
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   gHue++;
 }
@@ -337,7 +348,7 @@ void bpm(int SpeedDelay) {
     }
   }
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   gHue++;
 }
@@ -358,7 +369,7 @@ void juggle(int SpeedDelay) {
     }
   }
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 }
 
 
@@ -376,7 +387,7 @@ void Sparkle(int SpeedDelay) {
     }
   }
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 }
 
 //------------------------------------------------------//
@@ -390,7 +401,7 @@ void snowSparkle(int SparkleDelay, int SpeedDelay) {
     }
   }
   showStrip();
-  delay(SparkleDelay);
+  FastLED.delay(SparkleDelay);
   
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
@@ -398,7 +409,7 @@ void snowSparkle(int SparkleDelay, int SpeedDelay) {
     }
   }
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 }
 
 //------------------------------------------------------//
@@ -417,7 +428,7 @@ void runningLights(int WaveDelay) {
   }
   
   showStrip();
-  delay(WaveDelay);
+  FastLED.delay(WaveDelay);
 
   gHue++;
   offset = (offset + 21) & 0xFF;
@@ -445,7 +456,7 @@ void colorWipe(int SpeedDelay, boolean Reverse) {
   }
   
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   if ( Reverse ) {
     if ( pct-- == 0 ) {
@@ -500,7 +511,7 @@ void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
       }
     }
     showStrip();
-    delay(SpeedDelay/Size);
+    FastLED.delay(SpeedDelay/Size);
   }
 }
 
@@ -533,7 +544,7 @@ void rainbowChase(int SpeedDelay) {
     }
   }
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   ++q %= 3;
   gHue++;
@@ -549,7 +560,7 @@ void rainbowCycle(int SpeedDelay) {
     }
   }
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
   gHue++;
 }
 
@@ -566,7 +577,7 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
       
       // Step 1.  Cool down every cell a little
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
-        cooldown = random(0, ((Cooling * 10) / ledsPerSection) + 2);
+        cooldown = random16(0, ((Cooling * 10) / ledsPerSection) + 2);
         
         if ( cooldown>heat[z][i] ) {
           heat[z][i] = ((s%2==0 && i<sectionStart[z][s]+7) || (s%2==1 && i>sectionEnd[z][s]-8)) ? 2 : 0;
@@ -587,12 +598,12 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
       }
         
       // Step 3.  Randomly ignite new 'sparks' near the bottom
-      if( random(255) < Sparking ) {
-        int y = random(7);
+      if( random8() < Sparking ) {
+        int y = random8(7);
         if ( s%2 == 1 ) {
-          heat[z][sectionStart[z][s]+ledsPerSection-y-1] = heat[z][sectionStart[z][s]+ledsPerSection-y-1] + random(160,255);
+          heat[z][sectionStart[z][s]+ledsPerSection-y-1] = heat[z][sectionStart[z][s]+ledsPerSection-y-1] + random8(160,255);
         } else {
-          heat[z][sectionStart[z][s]+y] = heat[z][sectionStart[z][s]+y] + random(160,255);
+          heat[z][sectionStart[z][s]+y] = heat[z][sectionStart[z][s]+y] + random8(160,255);
         }
       }
     
@@ -603,7 +614,7 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
     }
   }
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 }
 
 //------------------------------------------------------//
@@ -681,7 +692,7 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
 
       // fade brightness all LEDs one step
       for ( int j=0; j<ledsPerSection; j++ ) {
-        if ( (!meteorRandomDecay) || (random(10)>5) ) {
+        if ( (!meteorRandomDecay) || (random8(10)>5) ) {
           fadeToBlack(z, sectionStart[z][s]+j, meteorTrailDecay);
         }
       }
@@ -695,11 +706,11 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
   }
   
   showStrip();
-  delay(SpeedDelay);
+  FastLED.delay(SpeedDelay);
 
   if ( pct++ == 100 ) {
     pct = 0;
-    delay(100); // add a bit of delay between meteors
+    FastLED.delay(100); // add a bit of delay between meteors
   }
 }
 

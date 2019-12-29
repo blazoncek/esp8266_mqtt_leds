@@ -15,7 +15,7 @@ extern int sectionEnd[][MAXSECTIONS];
 extern CRGB *leds[];
 
 extern boolean breakEffect;
-extern int gHue;
+extern int gHue, gBrightness;
 
 // Fire effect static data (byte[numLEDs]) allocated at init
 extern byte *heat[];
@@ -24,6 +24,7 @@ extern byte *heat[];
 void showStrip();
 
 // LED effects
+void solidColor();
 void RGBLoop();
 void FadeInOut();
 void Strobe(CRGB c, int FlashDelay=50);
