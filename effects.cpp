@@ -14,6 +14,7 @@ int gCurrentPattern = 0;
 
 //------------------------------------------------------//
 void solidColor(CRGB c) {
+  //showColor(&c)
   for ( int z=0; z<numZones; z++ ) {
     for ( int p=0; p<numLEDs[z]; p++ ) {
       setPixel(z, p, c);
