@@ -12,7 +12,7 @@ extern int sectionStart[][MAXSECTIONS];
 extern int sectionEnd[][MAXSECTIONS];
 
 // This is an array of leds.  One item for each led in your strip.
-extern CRGB *leds[];
+extern CRGB *leds[], gRGB;
 
 extern boolean breakEffect;
 extern int gHue, gBrightness;
@@ -24,7 +24,7 @@ extern byte *heat[];
 void showStrip();
 
 // LED effects
-void solidColor();
+void solidColor(CRGB c);
 void RGBLoop();
 void FadeInOut();
 void Strobe(CRGB c, int FlashDelay=50);

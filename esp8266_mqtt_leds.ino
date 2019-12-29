@@ -83,6 +83,7 @@ typedef struct EEPROM_DATA_T {
 int selectedEffect = 0;
 int gHue = 0;
 int gBrightness = 255;
+CRGB gRGB;
 
 // Effect's speed should be between 30 FPS and 60 FPS, depending on length (density) of LED strip
 // <51 pixels -> 30 FPS
@@ -529,11 +530,9 @@ void setup() {
 }
 
 void loop() {
-  CRGB rRGB;
 
   // get the pixel color from hue
   gHue &= 0xFF;
-  rRGB = CHSV(gHue,255,255);
 
   // handle OTA updates
   ArduinoOTA.handle();
@@ -558,7 +557,7 @@ void loop() {
               }
 
     case 1  : {
-              solidColor();
+              solidColor(gRGB);
               break;
               }
 
@@ -623,7 +622,7 @@ void loop() {
               }
 
     case 14 : {
-              theaterChase(rRGB);
+              theaterChase(CHSV(gHue,255,255));
               gHue++;
               break;
               }
@@ -641,7 +640,8 @@ void loop() {
 
     case 17 : {
               // simple bouncingBalls not included, since BouncingColoredBalls can perform this as well as shown below
-              bouncingColoredBalls(1, &rRGB);
+              gRGB = CHSV(gHue,255,255);
+              bouncingColoredBalls(1, &gRGB);
               gHue += 8;
               break;
               }
@@ -674,7 +674,7 @@ void loop() {
               }
 
     case 23 : {
-              CRGB colors[3] = { rRGB, CHSV((gHue+128)&0xFF,255,255), CRGB::Black };
+              CRGB colors[3] = { CHSV(gHue,255,255), CHSV((gHue+128)&0xFF,255,255), CRGB::Black };
               colorChase(colors, 4, 200, true);
               gHue++;
               break;
@@ -739,17 +739,88 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 
     DynamicJsonDocument doc(2048);
     deserializeJson(doc, payload);
-  
+
+    // if we have idx field equal to our idx
     if ( doc["idx"] == atoi(c_idx) ) {
+      
+      #if DEBUG
+      Serial.print("JSON: ");
+      serializeJson(doc, Serial);
+      Serial.println();
+      #endif
+
       // proper IDX found
       String action = doc["svalue1"];
-      int actionId = action.toInt();
-  
-      // apply new effect
-      selectedEffect = (actionId/10);
-      gHue = 0;           // reset hue
-      breakEffect = true; // interrupt current effect
-  
+      int actionId = action.toInt();  // global brightness or selected effect
+
+      // do we have RGBW switch?
+      if ( doc["Color"] != nullptr ) {  // can use doc["switchType"]=="Dimmer" && doc["dtype"]=="Color Switch"
+        int r,g,b,w;
+        
+        #if DEBUG
+        Serial.println("RGB(W) switch found.");
+        #endif
+
+        if ( doc["Color"]["m"] == 3 ) {
+          
+          r = doc["Color"]["r"];
+          g = doc["Color"]["g"];
+          b = doc["Color"]["b"];
+          w = doc["Color"]["ww"]; // reserver for future
+          //w = doc["Color"]["cw"];
+
+          gRGB = CRGB(r,g,b);
+          
+          #if DEBUG
+          Serial.println("Color found.");
+          Serial.print("R: ");
+          Serial.println(r,DEC);
+          Serial.print("G: ");
+          Serial.println(g,DEC);
+          Serial.print("B: ");
+          Serial.println(b,DEC);
+          #endif
+
+        } else if ( doc["Color"]["m"] == 1 ) {
+          
+          w = doc["Color"]["ww"];
+          //w = doc["Color"]["cw"];
+
+          gRGB = CRGB(w,w,w);
+          
+          #if DEBUG
+          Serial.println("Monochrome found.");
+          Serial.print("WW: ");
+          Serial.println(w,DEC);
+          #endif
+        }
+
+        gBrightness = doc["Level"];
+        gBrightness = min(max(gBrightness,0),255);
+        FastLED.setBrightness(gBrightness);
+
+        #if DEBUG
+        Serial.print("Brightness: ");
+        Serial.println(gBrightness, DEC);
+        #endif
+
+        if ( gBrightness ) {
+          selectedEffect = 1; // solid color effect
+        } else {
+          selectedEffect = 0; // off
+        }
+        
+      } else {  // doc["switchType"]=="Selector" && doc["dtype"]=="Light/Switch"
+        
+        // selector switch -> apply new effect
+        selectedEffect = (actionId/10);
+        gHue = 0;           // reset hue
+        breakEffect = true; // interrupt current effect
+
+        FastLED.setBrightness(255);
+
+      }
+
       // Publish effect state
       sprintf(tmp, "%s/effect", outTopic);
       sprintf(msg, "%d", selectedEffect);
@@ -1064,4 +1135,36 @@ char *ftoa(float n, char *res, int afterpoint)
 void saveConfigCallback ()
 {
   shouldSaveConfig = true;
+}
+
+// calculate hue from RGB
+CHSV *getHSVfromRGB(int r, int g, int b) {
+  static CHSV hsv;
+
+  float Cmax = max(r,max(g,b)) / 255.0;
+  float Cmin = min(r,min(g,b)) / 255.0;
+  float d = Cmax - Cmin;
+
+  float sat = Cmax>0.0 ? d / Cmax : 0.0;  // saturation: 0..1
+  float val = Cmax;                       // value: 0..1
+
+  float hue;
+  if ( d == 0.0 ) {
+    hue = 0;
+  } else if ( Cmax == r/255.0 ) {
+    hue = 60 * ((int)((g-b)/d/255.0) % 6);
+  } else if ( Cmax == g/255.0 ) {
+    hue = 60 * (((b-r)/d/255.0) + 2);
+  } else if ( Cmax == b/255.0 ) {
+    hue = 60 * (((r-g)/d/255.0) + 4);
+  } else {
+    hue = 0;
+  }
+
+  int h = (hue / 360.0) * 255;
+  int s = sat * 255;
+  int v = val * 255;
+
+  hsv = CHSV(h,s,v);
+  return &hsv;
 }
