@@ -19,6 +19,7 @@ Also supports Domoticz RGBW Switch type natively.
 - Use GPIO 0,4,12,15,2,5,14,13 pins for non-SPI based chips (3-wire pixels)
 - Use 512k or greater SPIFFS if possible (for OTA updates)
 - Configure via MQTT message:
+  - LEDstrip/led-xxxxxx/set/zones [#] `# of zones (max 4 with SPI based pixels or 8 otherwise)`
   - LEDstrip/led-xxxxxx/set/ledtype/0 [WS2801|WS2811|WS2812] `LED strip type for zone 0`
   - LEDstrip/led-xxxxxx/set/leds/0 [#] `# of LEDs in zone 0`
   - LEDstrip/led-xxxxxx/set/sections/0 [0,#,...] `section's start delimited by comma`
