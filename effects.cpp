@@ -711,7 +711,7 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
 
   if ( pct++ == 100 ) {
     pct = 0;
-    FastLED.delay(100); // add a bit of delay between meteors
+    //FastLED.delay(100); // add a bit of delay between meteors
   }
 }
 

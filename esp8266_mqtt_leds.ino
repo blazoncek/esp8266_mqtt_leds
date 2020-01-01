@@ -114,6 +114,9 @@ char MQTTBASE[16]    = "LEDstrip";
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+// web server object
+//ESP8266WebServer server(80);
+
 // private functions
 void mqtt_callback(char*, byte*, unsigned int);
 void mqtt_reconnect();
@@ -189,7 +192,7 @@ void setup() {
     zoneLEDType[i][7] = '\0';
     strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 6], 3);
     tmp[4] = '\0';
-    numLEDs[i] = atoi(tmp);       // number of LEDs in zone
+    numLEDs[i] = max(1,atoi(tmp));       // number of LEDs in zone
 
     #if DEBUG
     Serial.print("Zone ");
@@ -527,6 +530,21 @@ void setup() {
   client.setServer(mqtt_server, atoi(mqtt_port));
   client.setCallback(mqtt_callback);
 
+  // web server setup
+/*
+  if (MDNS.begin(clientId)) {
+    #if DEBUG
+    Serial.println("MDNS responder started");
+    #endif
+  }
+
+  server.on("/", handleRoot);
+  server.on("/inline", []() {
+    server.send(200, "text/plain", "this works as well");
+  });
+  server.onNotFound(handleNotFound);
+  server.begin();
+*/
 }
 
 void loop() {
@@ -543,6 +561,12 @@ void loop() {
   }
   // MQTT message processing
   client.loop();
+
+  // handle web server request
+/*
+  server.handleClient();
+  MDNS.update();
+*/
 
   selectedEffect = max(min(selectedEffect,24),0); // sanity check
   switch ( selectedEffect ) {
@@ -607,7 +631,7 @@ void loop() {
               }
               
     case 11 : {
-              runningLights(50); /* produces a lot of flickering */
+              runningLights(50);
               break;
               }
               
@@ -617,18 +641,18 @@ void loop() {
               }
 
     case 13 : {
-              rainbowCycle(100); /* produces a lot of flickering */
+              rainbowCycle(50);
               break;
               }
 
     case 14 : {
-              theaterChase(CHSV(gHue,255,255));
+              theaterChase(CHSV(gHue,255,255),100);
               gHue++;
               break;
               }
 
     case 15 : {
-              rainbowChase();
+              rainbowChase(100);
               break;
               }
 
@@ -710,6 +734,7 @@ void showStrip() {
 //   - MQTTBASE/clientID/command/effect  [effectID]  - change effect
 //   - MQTTBASE/clientID/set/effect      [effectID]  - change effect
 //   - MQTTBASE/clientID/set/idx         [ID]        - Domoticz IDX
+//   - MQTTBASE/clientID/set/zones       [n]         - # of zones (applied after restart)
 //   - MQTTBASE/clientID/set/ledtype/X   [WS2801|WS2811|WS2812] - attached LED type to zone X (applied after restart)
 //   - MQTTBASE/clientID/set/leds/X      [n]         - attached # of LEDs to zone X (applied after restart)
 //   - MQTTBASE/clientID/set/sections/X  [a,b,c,...] - a,b,c,... = start # of 1st LED in each section of zone X (applied after restart)
@@ -832,7 +857,61 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       #endif
     }
 
-  } else if ( strstr(topic, tmp) ) {
+  } else if ( strstr(topic, "shellies/") && strstr(topic, clientId) && strstr(topic, "/color/0/command") ) {
+
+    if ( newPayload == "on" ) {
+      selectedEffect = 1;
+    } else {
+      selectedEffect = 0;
+    }
+    
+  } else if ( strstr(topic, "shellies/") && strstr(topic, clientId) && strstr(topic, "/color/0/set") ) {
+
+    DynamicJsonDocument doc(2048);
+    deserializeJson(doc, payload);
+
+    if ( doc["turn"] == "on" ) {
+      selectedEffect = 1;
+    }
+
+    if ( doc["effect"] != 0 ) {
+      int effect = doc["effect"];
+      switch ( effect ) {
+        case 1: selectedEffect = 18; break; // Meteor
+        case 2: selectedEffect = 13; break; // rainbowCycle
+        case 3: selectedEffect = 2;  break; // fadeInOut
+        case 4: selectedEffect = 9;  break; // sparkle
+        case 5: selectedEffect = 12; break; // colorWipe
+        case 6: selectedEffect = 24; break; // christmasChase
+      }
+      //selectedEffect = max(min(doc["effect"]+1,2,24);
+    }
+
+    if ( doc["turn"] == "off" ) {
+      selectedEffect = 0;
+    }
+    
+    int r = doc["red"];
+    int g = doc["green"];
+    int b = doc["blue"];
+    int w = doc["white"]; // reserver for future
+
+    gRGB = CRGB(r,g,b);
+
+    int gain = doc["gain"];
+    gBrightness = (int) (gain/100.0 * 255);
+    
+    #if DEBUG
+    Serial.println("Color found.");
+    Serial.print("R: ");
+    Serial.println(r,DEC);
+    Serial.print("G: ");
+    Serial.println(g,DEC);
+    Serial.print("B: ");
+    Serial.println(b,DEC);
+    #endif
+
+  } else if ( strstr(topic, MQTTBASE) && strstr(topic, clientId) ) {
     
     if ( strstr(topic,"/set/idx") ) {
       
