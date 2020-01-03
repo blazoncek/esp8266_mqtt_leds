@@ -14,15 +14,16 @@ Also supports Domoticz RGBW Switch type natively.
 - Supports native [Domoticz](https://www.domoticz.com) control (virtual selector switch) via MQTT
 
 ### Instructions
-- Use GPIO0 (clock) and GPIO2 (data) `for zone 0, SPI based chip`
-- GPIO 4,12,15 pins for data pin zones 1,2,3; GPIO 5,14,13 clock pin zones 1,2,3
-- Use GPIO 0,4,12,15,2,5,14,13 pins for non-SPI based chips (3-wire pixels)
+- Use GPIO14 (clock) and GPIO12 (data) `for zone 0, SPI based chip`
+- Use GPIO 0,4,2,5,15,13 pins for non-SPI based chips (3-wire pixels WS2812)
+- Use only zones 0 and 1 for WS2811 pixels
 - Use 512k or greater SPIFFS if possible (for OTA updates)
 - Configure via MQTT message:
-  - LEDstrip/led-xxxxxx/set/zones [#] `# of zones (max 4 with SPI based pixels or 8 otherwise)`
-  - LEDstrip/led-xxxxxx/set/ledtype/0 [WS2801|WS2811|WS2812] `LED strip type for zone 0`
-  - LEDstrip/led-xxxxxx/set/leds/0 [#] `# of LEDs in zone 0`
-  - LEDstrip/led-xxxxxx/set/sections/0 [0,#,...] `section's start delimited by comma`
+  - LEDstrip/led-xxxxxx/set/zones [{JSON}] `zone 0 configuration in JSON format`
+    - {JSON} = { "zones":[{"ledtype":"WSxxxx", "leds":50, "sections":"0,25"},{"ledtype":...}] }
+    - "ledtype" : [WS2801|WS2811|WS2812] `LED strip type`
+    - "leds" : [#] `# of LEDs in zone 0`
+    - "sections" : [0,#,...] `section's start delimited by comma`
   - LEDstrip/led-xxxxxx/set/effect [#] `# of effect`
   - LEDstrip/led-xxxxxx/set/idx [#] `# of Domoticz virtual switch idx`
   - LEDstrip/led-xxxxxx/set/hue [#] `set Hue`
