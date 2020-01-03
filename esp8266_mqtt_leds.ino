@@ -541,6 +541,8 @@ void setup() {
   }
 
   server.on("/", handleRoot);
+  server.on("/set", handleSet);
+  server.on("/set/", handleSet);
 //  server.on("/inline", []() {
 //    server.send(200, "text/plain", "this works as well");
 //  });

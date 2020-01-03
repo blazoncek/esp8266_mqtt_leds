@@ -17,31 +17,56 @@ File fsUploadFile;
 
 extern ESP8266WebServer server;
 
-void handleRoot() {
-  char temp[400];
-  int sec = millis() / 1000;
-  int min = sec / 60;
-  int hr = min / 60;
-
-  snprintf_P(temp, 400,
-
-           PSTR("<html>\
+const String postForms = "<html>\
   <head>\
-    <meta http-equiv='refresh' content='5'/>\
-    <title>ESP8266 Demo</title>\
+    <title>Configure LED strips</title>\
     <style>\
       body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
     </style>\
   </head>\
   <body>\
-    <h1>Hello from ESP8266!</h1>\
-    <p>Uptime: %02d:%02d:%02d</p>\
+    <form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/set/\">\
+    <table>\
+    <tr><td>Domoticz IDX:</td><td><input type=\"text\" name=\'idx\' value=\'0\'></td></tr>\
+    <tr><td colspan=\'2\' align=\'center\'>Zone 0:</td></tr>\
+    <tr><td># of LEDs:</td><td><input type=\"text\" name=\'leds0\' value=\'50\'></td></tr>\
+    <tr><td>LED type (WS28xx):</td><td><select name=\'ledtype0\' size=\'1\'>\
+      <option value=\'WS2812\'>WS2812</option>\
+      <option value=\'WS2811\'>WS2811</option>\
+      <option value=\'WS2801\'>WS2801</option>\
+      </select></td></tr>\
+    <tr><td>LED sections:</td><td><input type=\"text\" name=\'sections0\' value=\'0,25\'></td></tr>\
+    <tr><td colspan=\'2\' align=\'center\'>Zone 1:</td></tr>\
+    <tr><td># of LEDs:</td><td><input type=\"text\" name=\'leds1\' value=\'0\'></td></tr>\
+    <tr><td>LED type (WS28xx):</td><td><select name=\'ledtype1\' size=\'1\'>\
+      <option value=\'WS2812\'>WS2812</option>\
+      <option value=\'WS2811\'>WS2811</option>\
+      </select></td></tr>\
+    <tr><td>LED sections:</td><td><input type=\"text\" name=\'sections1\' value=\'\'></td></tr>\
+    <tr><td colspan=\'2\' align=\'center\'>Zone 2:</td></tr>\
+    <tr><td># of LEDs:</td><td><input type=\"text\" name=\'leds2\' value=\'0\'></td></tr>\
+    <tr><td>LED type:</td><td><input type=\"text\" name=\'ledtype2\' value=\'WS2812\' readonly></td></tr>\
+    <tr><td>LED sections:</td><td><input type=\"text\" name=\'sections2\' value=\'\'></td></tr>\
+    <tr><td colspan=\'2\' align=\'center\'>Zone 3:</td></tr>\
+    <tr><td># of LEDs:</td><td><input type=\"text\" name=\'leds3\' value=\'0\'></td></tr>\
+    <tr><td>LED type:</td><td><input type=\"text\" name=\'ledtype3\' value=\'WS2812\' readonly></td></tr>\
+    <tr><td>LED sections:</td><td><input type=\"text\" name=\'sections3\' value=\'\'></td></tr>\
+    <tr><td colspan=\'2\' align=\'center\'>Zone 4:</td></tr>\
+    <tr><td># of LEDs:</td><td><input type=\"text\" name=\'leds4\' value=\'0\'></td></tr>\
+    <tr><td>LED type:</td><td><input type=\"text\" name=\'ledtype4\' value=\'WS2812\' readonly></td></tr>\
+    <tr><td>LED sections:</td><td><input type=\"text\" name=\'sections4\' value=\'\'></td></tr>\
+    <tr><td colspan=\'2\' align=\'center\'>Zone 5:</td></tr>\
+    <tr><td># of LEDs:</td><td><input type=\"text\" name=\'leds5\' value=\'0\'></td></tr>\
+    <tr><td>LED type:</td><td><input type=\"text\" name=\'ledtype5\' value=\'WS2812\' readonly></td></tr>\
+    <tr><td>LED sections:</td><td><input type=\"text\" name=\'sections5\' value=\'\'></td></tr>\
+    <tr><td colspan=\'2\' align=\'center\'><input type=\"submit\" value=\"Submit\"></td></tr>\
+    </table>\
+    </form>\
   </body>\
-</html>"),
+</html>";
 
-           hr, min % 60, sec % 60
-          );
-  server.send(200, "text/html", temp);
+void handleRoot() {
+  server.send(200, "text/html", postForms);
 }
 
 void handleNotFound() {
@@ -60,146 +85,27 @@ void handleNotFound() {
 
   server.send(404, "text/plain", message);
 }
-/*
-String getContentType(String filename) {
-  if (server.hasArg("download")) {
-    return "application/octet-stream";
-  } else if (filename.endsWith(".htm")) {
-    return "text/html";
-  } else if (filename.endsWith(".html")) {
-    return "text/html";
-  } else if (filename.endsWith(".css")) {
-    return "text/css";
-  } else if (filename.endsWith(".js")) {
-    return "application/javascript";
-  } else if (filename.endsWith(".png")) {
-    return "image/png";
-  } else if (filename.endsWith(".gif")) {
-    return "image/gif";
-  } else if (filename.endsWith(".jpg")) {
-    return "image/jpeg";
-  } else if (filename.endsWith(".ico")) {
-    return "image/x-icon";
-  } else if (filename.endsWith(".xml")) {
-    return "text/xml";
-  } else if (filename.endsWith(".pdf")) {
-    return "application/x-pdf";
-  } else if (filename.endsWith(".zip")) {
-    return "application/x-zip";
-  } else if (filename.endsWith(".gz")) {
-    return "application/x-gzip";
-  }
-  return "text/plain";
-}
 
-bool handleFileRead(String path) {
-  if (path.endsWith("/")) {
-    path += "index.htm";
-  }
-  String contentType = getContentType(path);
-  String pathWithGz = path + ".gz";
-  if (filesystem->exists(pathWithGz) || filesystem->exists(path)) {
-    if (filesystem->exists(pathWithGz)) {
-      path += ".gz";
-    }
-    File file = filesystem->open(path, "r");
-    server.streamFile(file, contentType);
-    file.close();
-    return true;
-  }
-  return false;
-}
-
-void handleFileUpload() {
-  if (server.uri() != "/edit") {
-    return;
-  }
-  HTTPUpload& upload = server.upload();
-  if (upload.status == UPLOAD_FILE_START) {
-    String filename = upload.filename;
-    if (!filename.startsWith("/")) {
-      filename = "/" + filename;
-    }
-    fsUploadFile = filesystem->open(filename, "w");
-    filename = String();
-  } else if (upload.status == UPLOAD_FILE_WRITE) {
-    if (fsUploadFile) {
-      fsUploadFile.write(upload.buf, upload.currentSize);
-    }
-  } else if (upload.status == UPLOAD_FILE_END) {
-    if (fsUploadFile) {
-      fsUploadFile.close();
-    }
-  }
-}
-
-void handleFileDelete() {
-  if (server.args() == 0) {
-    return server.send(500, "text/plain", "BAD ARGS");
-  }
-  String path = server.arg(0);
-  if (path == "/") {
-    return server.send(500, "text/plain", "BAD PATH");
-  }
-  if (!filesystem->exists(path)) {
-    return server.send(404, "text/plain", "FileNotFound");
-  }
-  filesystem->remove(path);
-  server.send(200, "text/plain", "");
-  path = String();
-}
-
-void handleFileCreate() {
-  if (server.args() == 0) {
-    return server.send(500, "text/plain", "BAD ARGS");
-  }
-  String path = server.arg(0);
-  if (path == "/") {
-    return server.send(500, "text/plain", "BAD PATH");
-  }
-  if (filesystem->exists(path)) {
-    return server.send(500, "text/plain", "FILE EXISTS");
-  }
-  File file = filesystem->open(path, "w");
-  if (file) {
-    file.close();
+void handleSet() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
   } else {
-    return server.send(500, "text/plain", "CREATE FAILED");
-  }
-  server.send(200, "text/plain", "");
-  path = String();
-}
-
-void handleFileList() {
-  if (!server.hasArg("dir")) {
-    server.send(500, "text/plain", "BAD ARGS");
-    return;
-  }
-
-  String path = server.arg("dir");
-  Dir dir = filesystem->openDir(path);
-  path = String();
-
-  String output = "[";
-  while (dir.next()) {
-    File entry = dir.openFile("r");
-    if (output != "[") {
-      output += ',';
+    if (server.args() == 0) {
+      return server.send(500, "text/plain", "BAD ARGS");
     }
-    bool isDir = false;
-    output += "{\"type\":\"";
-    output += (isDir) ? "dir" : "file";
-    output += "\",\"name\":\"";
-    if (entry.name()[0] == '/') {
-      output += &(entry.name()[1]);
-    } else {
-      output += entry.name();
+  
+    String message = "POST form was:\n";
+    for (uint8_t i = 0; i < server.args(); i++) {
+      message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
     }
-    output += "\"}";
-    entry.close();
-  }
+    server.send(200, "text/plain", message);
 
-  output += "]";
-  server.send(200, "text/json", output);
+    for ( int i=0; i<server.args(); i++ ) {
+      String path = server.arg(i);
+      String var = server.argName(i);
+      Serial.print(var);
+      Serial.print("=");
+      Serial.println(path);
+    }
+  }
 }
-*/
