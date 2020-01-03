@@ -339,7 +339,7 @@ void bpm(int SpeedDelay) {
 
   // colored stripes pulsing at a defined Beats-Per-Minute (BPM)
   uint8_t BeatsPerMinute = 62;
-  CRGBPalette16 palette = PartyColors_p;
+  CRGBPalette16 palette = RainbowColors_p; // PartyColors_p;
   uint8_t beat = beatsin8(BeatsPerMinute, 32, 255);
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
@@ -536,7 +536,7 @@ void rainbowChase(int SpeedDelay) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
 
-      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue);
+      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue, max(1,255/ledsPerSection));
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
         if ( i%3 != q ) {
           setPixel(z,i,CRGB::Black);
@@ -557,7 +557,7 @@ void rainbowCycle(int SpeedDelay) {
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue);
+      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue, max(1,255/ledsPerSection));
     }
   }
   showStrip();

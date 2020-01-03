@@ -1,0 +1,2 @@
+void handleRoot();
+void handleNotFound();

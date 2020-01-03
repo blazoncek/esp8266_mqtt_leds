@@ -10,6 +10,8 @@
 
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 
+#include <pgmspace.h>
+
 #include <ESP8266WiFi.h>          // Base ESP8266 includes
 #include <ESP8266mDNS.h>          // multicast DNS
 #include <WiFiUdp.h>              // UDP handling
@@ -29,12 +31,24 @@
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #include "FastLED.h"
 
+// NOTE: FastLED is a very memory hungry library. Each call to FastLED.addLeds() consumes around 1k of
+// IRAM memory which is limited to 32k. Also ever static string gets stored to IRAM by default so we
+// will use PROGMEM for static strings whenever possible to reduce IRAM pressure.
+//
+// Even though this sketch supports WS2801 pixels, they are limited only to zone 0, also since WS2811 are less
+// frequently used (than WS2812) they are limited to zones 0 and 2.
+// WS2812 pixels can use zones 0 to zone 5.
+//
+// WS2801 uses SPI pins on ESP (even though FastLED lacks HW support), GPIO12 (MISO) & GPIO14 (SCLK)
+// WS2811 uses pins GPIO0 (zone 0) and GPIO4 (zone 2)
+// WS2812 uses PINS GPIO0, 4, 2, 5, 15, 13 
 
 // local includes
 
 #include "effects.h"
+#include "webpages.h"
 
-#define DEBUG   1
+#define DEBUG 1
 
 int numZones = 0;                           // number of zones (LED strips), each zone requires a GPIO pin (or two)
 int numLEDs[MAXZONES];                      // number of pixels in each zone
@@ -50,7 +64,7 @@ CRGB *leds[MAXZONES];
 // [0-2]   esp ................ verification string
 // [3-5]   999 ................ Domoticz idx
 // [6]     9   ................ number of used zones
-// [7-12]  XXXXXX ............. zone 1 LED type (WS2801, WS2811, WS2812)
+// [7-12]  XXXXXX ............. zone 1 LED type (WS2801 (only on zone 0), WS2811, WS2812)
 // [13-15] 999 ................ number of LEDs in zone
 // [16-18] 999 ................ start of section 1
 // [19-21] 999 ................ start of section 2
@@ -72,7 +86,7 @@ typedef struct ZONE_DATA_T {
 } zone_data_t;
 
 typedef struct EEPROM_DATA_T {
-  const char esp[3];
+  char esp[3];
   char idx[3];
   char nZones;
   zone_data_t zoneData[MAXZONES];
@@ -80,7 +94,7 @@ typedef struct EEPROM_DATA_T {
 
 // global variables
 
-int selectedEffect = 0;
+effects_t selectedEffect = OFF;
 int gHue = 0;
 int gBrightness = 255;
 CRGB gRGB;
@@ -103,19 +117,16 @@ char c_idx[4]        = "0";         // domoticz switch IDX (type Selector, value
 // flag for saving data from WiFiManager
 bool shouldSaveConfig = false;
 
-long lastMsg = 0;
 char msg[256];
-char mac_address[16];
 char outTopic[64];
 char clientId[20];  // MQTT client ID
-
 char MQTTBASE[16]    = "LEDstrip";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 // web server object
-//ESP8266WebServer server(80);
+ESP8266WebServer server(80);
 
 // private functions
 void mqtt_callback(char*, byte*, unsigned int);
@@ -123,56 +134,75 @@ void mqtt_reconnect();
 char *ftoa(float,char*,int d=2);
 void saveConfigCallback();
 
+// strings (to reduce IRAM pressure)
+static const char _USERNAME[] = "username";
+static const char _PASSWORD[] = "password";
+static const char _MQTTSVR[]  = "mqtt_server";
+static const char _MQTTPRT[]  = "mqtt_port";
+static const char _CONFIG[] PROGMEM = "/config.json";
+static const char _WS2801[] PROGMEM = "WS2801";
+static const char _WS2811[] PROGMEM = "WS2811";
+static const char _WS2812[] PROGMEM = "WS2812";
+/*
+static const char [] PROGMEM = "";
+*/
+
 //-----------------------------------------------------------
 // main setup
 void setup() {
+  char mac_address[16];
   char str[EEPROM_SIZE+1];
-  char tmp[20];
+  char tmp[32];
 
   Serial.begin(115200);
   delay(3000);
 
   String WiFiMAC = WiFi.macAddress();
-  WiFiMAC.replace(":","");
+  WiFiMAC.replace(F(":"),F(""));
   WiFiMAC.toCharArray(mac_address, 16);
+  
   // Create client ID from MAC address
-  sprintf(clientId, "led-%s", &mac_address[6]);
+  sprintf_P(clientId, PSTR("led-%s"), &mac_address[6]);
   WiFi.hostname(clientId);
+  
   WiFi.mode(WIFI_STA);
   WiFi.setSleepMode(WIFI_NONE_SLEEP);
 
   #if DEBUG
-  Serial.println("");
-  Serial.print("Host name: ");
+  Serial.println();
+  Serial.print(F("Host name: "));
   Serial.println(WiFi.hostname());
-  Serial.print("MAC address: ");
+  Serial.print(F("MAC address: "));
   Serial.println(mac_address);
+
+  Serial.print(F("# of effects : "));
+  Serial.println(LAST_EFFECT, DEC);
   #endif
 
   // request 20 bytes from EEPROM & write LED info
   EEPROM.begin(EEPROM_SIZE);
 
   #if DEBUG
-  Serial.println("");
-  Serial.print("EEPROM data: ");
+  Serial.println();
+  Serial.print(F("EEPROM data: "));
   #endif
   for ( int i=0; i<EEPROM_SIZE; i++ ) {
     str[i] = EEPROM.read(i);
     #if DEBUG
     Serial.print(str[i], HEX);
-    Serial.print(":");
+    Serial.print(F(":"));
     #endif
   }
   #if DEBUG
-  Serial.print(" (");
+  Serial.print(F(" ("));
   Serial.print(str);
-  Serial.println(")");
+  Serial.println(F(")"));
   #endif
 
   // read data from EEPROM
-  if ( strncmp(str,"esp",3)==0 ) {
+  if ( strncmp_P(str,PSTR("esp"),3)==0 ) {
     strncpy(tmp, &str[3], 3);
-    sprintf(c_idx, "%d", atoi(tmp)); 
+    sprintf_P(c_idx, PSTR("%d"), atoi(tmp)); 
     numZones = str[6] - '0';
   } else {
     strcpy(c_idx, "0");
@@ -180,9 +210,9 @@ void setup() {
   }
 
   #if DEBUG
-  Serial.print("idx: ");
+  Serial.print(F("idx: "));
   Serial.println(c_idx);
-  Serial.print("# of zones: ");
+  Serial.print(F("# of zones: "));
   Serial.println(numZones, DEC);
   #endif
 
@@ -192,14 +222,14 @@ void setup() {
     zoneLEDType[i][7] = '\0';
     strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 6], 3);
     tmp[4] = '\0';
-    numLEDs[i] = max(1,atoi(tmp));       // number of LEDs in zone
+    numLEDs[i] = max(1,atoi(tmp));       // number of LEDs in zone (min 1, otherwise FastLED crashes)
 
     #if DEBUG
-    Serial.print("Zone ");
+    Serial.print(F("Zone "));
     Serial.print(i, DEC);
-    Serial.print(" LED type: ");
+    Serial.print(F(" LED type: "));
     Serial.print(zoneLEDType[i]);
-    Serial.print(" and # of LEDs: ");
+    Serial.print(F(" and # of LEDs: "));
     Serial.println(numLEDs[i],DEC);
     #endif
 
@@ -219,13 +249,13 @@ void setup() {
     }
     #if DEBUG
     for ( int j=0; j<numSections[i]; j++ ) {
-      Serial.print("Zone: ");
+      Serial.print(F("Zone: "));
       Serial.print(i, DEC);
-      Serial.print(" section: ");
+      Serial.print(F(" section: "));
       Serial.print(j, DEC);
-      Serial.print(" start: ");
+      Serial.print(F(" start: "));
       Serial.print(sectionStart[i][j], DEC);
-      Serial.print(" end: ");
+      Serial.print(F(" end: "));
       Serial.println(sectionEnd[i][j], DEC);
     }
     #endif
@@ -236,22 +266,22 @@ void setup() {
   //SPIFFS.format();
 
   #if DEBUG
-  Serial.println("Starting WiFi manager");
+  Serial.println(F("Starting WiFi manager"));
   #endif
 
   //read configuration from FS json
   if ( SPIFFS.begin() ) {
     #if DEBUG
-    Serial.println("SPIFFS begin.");
+    Serial.println(F("SPIFFS begin."));
     #endif
 
-    if ( SPIFFS.exists("/config.json") ) {
+    if ( SPIFFS.exists(FPSTR(_CONFIG)) ) {
       //file exists, reading and loading
       #if DEBUG
-      Serial.println("File found.");
+      Serial.println(F("File found."));
       #endif
       
-      File configFile = SPIFFS.open("/config.json", "r");
+      File configFile = SPIFFS.open(FPSTR(_CONFIG), "r");
       if ( configFile ) {
         size_t size = configFile.size();
         
@@ -262,28 +292,28 @@ void setup() {
         DynamicJsonDocument doc(size);
         DeserializationError error = deserializeJson(doc, buf.get());
         if ( !error ) {
-          strcpy(mqtt_server, doc["mqtt_server"]);
-          strcpy(mqtt_port, doc["mqtt_port"]);
-          strcpy(username, doc["username"]);
-          strcpy(password, doc["password"]);
+          strcpy(mqtt_server, doc[_MQTTSVR]);
+          strcpy(mqtt_port, doc[_MQTTPRT]);
+          strcpy(username, doc[_USERNAME]);
+          strcpy(password, doc[_PASSWORD]);
           #if DEBUG
           serializeJson(doc, Serial);
-          Serial.println("");
+          Serial.println();
           #endif
         } else {
           #if DEBUG
-          Serial.println("Error reading JSON from config file.");
+          Serial.println(F("Error reading JSON from config file."));
           #endif
         }
       } else {
         #if DEBUG
-        Serial.println("Config file does not exist.");
+        Serial.println(F("Config file does not exist."));
         #endif
       }
     }
   } else {
     #if DEBUG
-    Serial.println("SPIFFS failed.");
+    Serial.println(F("SPIFFS failed."));
     #endif
   }
   //end read
@@ -291,12 +321,13 @@ void setup() {
   // The extra parameters to be configured (can be either global or just in the setup)
   // After connecting, parameter.getValue() will get you the configured value
   // id/name placeholder/prompt default length
-  WiFiManagerParameter custom_mqtt_server("server", "mqtt server", mqtt_server, 40);
-  WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 5);
-  WiFiManagerParameter custom_username("username", "username", username, 32);
-  WiFiManagerParameter custom_password("password", "password", password, 32);
+  WiFiManagerParameter custom_mqtt_server("server", _MQTTSVR, mqtt_server, 40);
+  WiFiManagerParameter custom_mqtt_port("port",     _MQTTPRT, mqtt_port, 5);
+  WiFiManagerParameter custom_username(_USERNAME,  _USERNAME, username, 32);
+  WiFiManagerParameter custom_password(_PASSWORD,  _PASSWORD, password, 32);
 
-  WiFiManagerParameter custom_idx("idx", "Domoticz switch IDX", c_idx, 3);
+  strcpy_P(tmp, PSTR("Domoticz switch IDX"));
+  WiFiManagerParameter custom_idx("idx", tmp, c_idx, 3);
 
   // WiFiManager
   // Local intialization. Once its business is done, there is no need to keep it around
@@ -350,16 +381,16 @@ void setup() {
   //save the custom parameters to FS
   if ( shouldSaveConfig ) {
     DynamicJsonDocument doc(1024);
-    doc["mqtt_server"] = mqtt_server;
-    doc["mqtt_port"] = mqtt_port;
-    doc["username"] = username;
-    doc["password"] = password;
+    doc[_MQTTSVR] = mqtt_server;
+    doc[_MQTTPRT] = mqtt_port;
+    doc[_USERNAME] = username;
+    doc[_PASSWORD] = password;
 
-    File configFile = SPIFFS.open("/config.json", "w");
+    File configFile = SPIFFS.open(FPSTR(_CONFIG), "w");
     if ( !configFile ) {
       // failed to open config file for writing
       #if DEBUG
-      Serial.println("Error opening config file fo writing.");
+      Serial.println(F("Error opening config file fo writing."));
       #endif
     } else {
       serializeJson(doc, configFile);
@@ -370,7 +401,7 @@ void setup() {
     }
 
     // write idx info to EEPROM
-    sprintf(str, "esp%3s0", c_idx);
+    sprintf_P(str, PSTR("esp%3s0"), c_idx);
     for ( int i=0; i<strlen(str); i++ ) {
       EEPROM.write(i, str[i]);
     }
@@ -390,32 +421,33 @@ void setup() {
   ArduinoOTA.onStart([]() {
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH) {
-      type = "sketch";
+      type = F("sketch");
     } else { // U_FS
-      type = "filesystem";
+      type = F("filesystem");
     }
     #if DEBUG
-    Serial.println("Start updating " + type);
+    Serial.print(F("Start updating "));
+    Serial.println(type);
     #endif
   });
   ArduinoOTA.onEnd([]() {
     #if DEBUG
-    Serial.println("\nEnd");
+    Serial.println(F("\nEnd"));
     #endif
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     #if DEBUG
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    Serial.printf_P(PSTR("Progress: %u%%\r"), (progress / (total / 100)));
     #endif
   });
   ArduinoOTA.onError([](ota_error_t error) {
     #if DEBUG
-    Serial.printf("Error[%u]: ", error);
-    if      (error == OTA_AUTH_ERROR)    Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR)   Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR)     Serial.println("End Failed");
+    Serial.printf_P(PSTR("Error[%u]: "), error);
+    if      (error == OTA_AUTH_ERROR)    Serial.println(F("Auth Failed"));
+    else if (error == OTA_BEGIN_ERROR)   Serial.println(F("Begin Failed"));
+    else if (error == OTA_CONNECT_ERROR) Serial.println(F("Connect Failed"));
+    else if (error == OTA_RECEIVE_ERROR) Serial.println(F("Receive Failed"));
+    else if (error == OTA_END_ERROR)     Serial.println(F("End Failed"));
     #endif
   });
   ArduinoOTA.begin();
@@ -434,90 +466,61 @@ void setup() {
     // const int dataPINs[] = {2, 4, 12, 15};  // D4, D2, D6, D8 (may also use TX for 5th zone)
     // const int clockPINs[] = {0, 5, 14, 13}; // D3, D1, D5, D7; for WS2801 type (may also use RX for 5th zone)
     // FastLED.addLeds<WS2812, dataPINs[i], GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+
+    // Currently not enough IRAM for more than 4 zones. :(
+    // Each FastLED.addLeds() takes 1140 bytes of IRAM
     
-    if ( strcmp(zoneLEDType[i],"WS2801")==0 ) {
+    if ( strcmp_P(zoneLEDType[i], _WS2801)==0 && i==0 ) {
+      // only allow WS2801 strip on zone 0 (due to memory constrains)
       #if DEBUG
-      Serial.println("Adding WS2801 strip");
+      Serial.println(F("Adding WS2801 strip (on GPIO12, GPIO14)."));
+      #endif
+      FastLED.addLeds<WS2801, 12, 14, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+    } else if ( strcmp_P(zoneLEDType[i], _WS2811)==0 ) {
+      // only allow WS2811 strip on zone 0 and 1 (due to memory constrains)
+      #if DEBUG
+      Serial.println(F("Adding WS2811 strip."));
       #endif
       switch (i) {
         case 0:
-          FastLED.addLeds<WS2801, 2, 0, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2811, 0/*D3*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 1:
-          FastLED.addLeds<WS2801, 4, 5, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2811, 4/*D2*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 2:
-          FastLED.addLeds<WS2801, 12, 14, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-        case 3:
-          FastLED.addLeds<WS2801, 15, 13, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
+//        case 2:
+//          FastLED.addLeds<WS2811, 2/*D4*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+//          break;
+//        case 3:
+//          FastLED.addLeds<WS2811, 5/*D1*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+//          break;
+//        case 4:
+//          FastLED.addLeds<WS2811, 15/*D8*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+//          break;
       }
-    } else if ( strcmp(zoneLEDType[i],"WS2811")==0 ) {
+    } else if ( strcmp_P(zoneLEDType[i], _WS2812)==0 ) {
       #if DEBUG
-      Serial.println("Adding WS2811 strip");
+      Serial.println(F("Adding WS2812 strip."));
       #endif
       switch (i) {
         case 0:
-          FastLED.addLeds<WS2811, 0, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 0/*D3*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 1:
-          FastLED.addLeds<WS2811, 4, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 4/*D2*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 2:
-          FastLED.addLeds<WS2811, 12, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 2/*D4*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 3:
-          FastLED.addLeds<WS2811, 15, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 5/*D1*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-/*
-        // use the following for zones 5-8
         case 4:
-          FastLED.addLeds<WS2811, 2, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 15/*D8*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 5:
-          FastLED.addLeds<WS2811, 5, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 13/*D7*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 6:
-          FastLED.addLeds<WS2811, 14, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-        case 7:
-          FastLED.addLeds<WS2811, 13, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-*/
-      }
-    } else if ( strcmp(zoneLEDType[i],"WS2812")==0 ) {
-      #if DEBUG
-      Serial.println("Adding WS2812 strip");
-      #endif
-      switch (i) {
-        case 0:
-          FastLED.addLeds<WS2812, 0, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-        case 1:
-          FastLED.addLeds<WS2812, 4, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-        case 2:
-          FastLED.addLeds<WS2812, 12, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-        case 3:
-          FastLED.addLeds<WS2812, 15, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-/*
-        // use the following for zones 5-8
-        case 4:
-          FastLED.addLeds<WS2812, 2, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-        case 5:
-          FastLED.addLeds<WS2812, 5, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-        case 6:
-          FastLED.addLeds<WS2812, 14, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-        case 7:
-          FastLED.addLeds<WS2812, 13, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-*/
       }
     }
   }
@@ -525,26 +528,24 @@ void setup() {
   randomSeed(millis());
 
   // initialize MQTT connection & provide callback function
-  sprintf(outTopic, "%s/%s", MQTTBASE, clientId);
+  sprintf_P(outTopic, PSTR("%s/%s"), MQTTBASE, clientId);
       
   client.setServer(mqtt_server, atoi(mqtt_port));
   client.setCallback(mqtt_callback);
 
   // web server setup
-/*
   if (MDNS.begin(clientId)) {
     #if DEBUG
-    Serial.println("MDNS responder started");
+    Serial.println(F("MDNS responder started."));
     #endif
   }
 
   server.on("/", handleRoot);
-  server.on("/inline", []() {
-    server.send(200, "text/plain", "this works as well");
-  });
+//  server.on("/inline", []() {
+//    server.send(200, "text/plain", "this works as well");
+//  });
   server.onNotFound(handleNotFound);
   server.begin();
-*/
 }
 
 void loop() {
@@ -563,151 +564,128 @@ void loop() {
   client.loop();
 
   // handle web server request
-/*
   server.handleClient();
   MDNS.update();
-*/
 
-  selectedEffect = max(min(selectedEffect,24),0); // sanity check
+  selectedEffect = (effects_t)max(min((int)selectedEffect,(int)LAST_EFFECT),(int)OFF); // sanity check
   switch ( selectedEffect ) {
 
-    case 0 : {
+    case OFF :
               for ( int z=0; z<numZones; z++ ) {
                 fadeToBlackBy(leds[z], numLEDs[z], 32);
               }
               showStrip();
               delay(100);
               break;
-              }
 
-    case 1  : {
+    case SOLID :
               solidColor(gRGB);
               break;
-              }
 
-    case 2  : {
+    case FADEINOUT :
               FadeInOut();
               break;
-              }
               
-    case 3  : {
+    case STROBE :
               Strobe(CRGB::White);
               break;
-              }
 
-    case 4  : {
+    case HALLOWEENEYES :
               HalloweenEyes(CRGB::Red, 1, 1, false);
               break;
-              }
               
-    case 5  : {
+    case CYLONBOUNCE :
               CylonBounce(8, 10); // 100% / 1000 ms
               break;
-              }
               
-    case 6  : {
+    case NEWKITT :
               NewKITT(12, 8);
               break;
-              }
               
-    case 7  : {
+    case TWINKLE :
               Twinkle(100, false);
               break;
-              }
               
-    case 8  : { 
+    case TWINKLERANDOM :
               TwinkleRandom(100, false);
               break;
-              }
               
-    case 9  : {
+    case SPARKLE :
               Sparkle(50);
               break;
-              }
                
-    case 10 : {
+    case SNOWSPARKLE :
               snowSparkle(50, random(50,200));
               break;
-              }
               
-    case 11 : {
+    case RUNNINGLIGHTS :
               runningLights(50);
               break;
-              }
               
-    case 12 : {
+    case COLORWIPE :
               colorWipe(10);
               break;
-              }
 
-    case 13 : {
+    case RAINBOWCYCLE :
               rainbowCycle(50);
               break;
-              }
 
-    case 14 : {
+    case THEATRECHASE :
               theaterChase(CHSV(gHue,255,255),100);
               gHue++;
               break;
-              }
 
-    case 15 : {
+    case RAINBOWCHASE :
               rainbowChase(100);
               break;
-              }
 
-    case 16 : {
+    case FIRE :
               // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS)
               Fire(55, 120, 30);
               break;
-              }
 
-    case 17 : {
+    case BOUNCINGBALL :
               // simple bouncingBalls not included, since BouncingColoredBalls can perform this as well as shown below
               gRGB = CHSV(gHue,255,255);
               bouncingColoredBalls(1, &gRGB);
               gHue += 8;
               break;
-              }
 
-    case 18 : {
+    case BOUNCINGCOLOREDBALLS :
+              {
               // multiple colored balls
               CRGB colors[3] = { CRGB::Red, CRGB::Green, CRGB::Blue };
               bouncingColoredBalls(3, colors);
               break;
               }
 
-    case 19 : {
+    case METEORRAIN :
               meteorRain(8, 64, true, 10);
               break;
-              }
 
-    case 20 : {
+    case SINELON :
               sinelon(10);
               break;
-              }
 
-    case 21 : {
+    case BPM :
               bpm(10);
               break;
-              }
 
-    case 22 : {
+    case JUGGLE :
               juggle(10);
               break;
-              }
 
-    case 23 : {
+    case COLORCHASE :
+              {
               CRGB colors[3] = { CHSV(gHue,255,255), CHSV((gHue+128)&0xFF,255,255), CRGB::Black };
               colorChase(colors, 4, 200, true);
               gHue++;
               break;
               }
 
-    case 24 : {
+    case CHRISTMASCHASE :
               christmasChase(4);
               break;
-              }
 
   }
   breakEffect = false;
@@ -758,9 +736,9 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   String newPayload = String((char *)payload);
 
   // client
-  sprintf(tmp, "%s/%s", MQTTBASE, clientId);
+  sprintf_P(tmp, PSTR("%s/%s"), MQTTBASE, clientId);
 
-  if ( strcmp(topic,"domoticz/out") == 0 ) {
+  if ( strcmp_P(topic, PSTR("domoticz/out")) == 0 ) {
 
     DynamicJsonDocument doc(2048);
     deserializeJson(doc, payload);
@@ -783,7 +761,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         int r,g,b,w;
         
         #if DEBUG
-        Serial.println("RGB(W) switch found.");
+        Serial.println(F("RGB(W) switch found."));
         #endif
 
         if ( doc["Color"]["m"] == 3 ) {
@@ -797,12 +775,12 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
           gRGB = CRGB(r,g,b);
           
           #if DEBUG
-          Serial.println("Color found.");
-          Serial.print("R: ");
+          Serial.println(F("Color found."));
+          Serial.print(F("R: "));
           Serial.println(r,DEC);
-          Serial.print("G: ");
+          Serial.print(F("G: "));
           Serial.println(g,DEC);
-          Serial.print("B: ");
+          Serial.print(F("B: "));
           Serial.println(b,DEC);
           #endif
 
@@ -814,8 +792,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
           gRGB = CRGB(w,w,w);
           
           #if DEBUG
-          Serial.println("Monochrome found.");
-          Serial.print("WW: ");
+          Serial.println(F("Monochrome found."));
+          Serial.print(F("WW: "));
           Serial.println(w,DEC);
           #endif
         }
@@ -825,20 +803,20 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         FastLED.setBrightness(gBrightness);
 
         #if DEBUG
-        Serial.print("Brightness: ");
+        Serial.print(F("Brightness: "));
         Serial.println(gBrightness, DEC);
         #endif
 
         if ( gBrightness ) {
-          selectedEffect = 1; // solid color effect
+          selectedEffect = SOLID; // solid color effect
         } else {
-          selectedEffect = 0; // off
+          selectedEffect = OFF; // off
         }
         
       } else {  // doc["switchType"]=="Selector" && doc["dtype"]=="Light/Switch"
         
         // selector switch -> apply new effect
-        selectedEffect = (actionId/10);
+        selectedEffect = (effects_t)(actionId/10);
         gHue = 0;           // reset hue
         breakEffect = true; // interrupt current effect
 
@@ -847,48 +825,48 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       }
 
       // Publish effect state
-      sprintf(tmp, "%s/effect", outTopic);
-      sprintf(msg, "%d", selectedEffect);
+      sprintf_P(tmp, PSTR("%s/effect"), outTopic);
+      sprintf_P(msg, PSTR("%d"), (int)selectedEffect);
       client.publish(tmp, msg);
     
       #if DEBUG
-      Serial.print("Selected effect: ");
-      Serial.println(selectedEffect, DEC);
+      Serial.print(F("Selected effect: "));
+      Serial.println((int)selectedEffect, DEC);
       #endif
     }
 
-  } else if ( strstr(topic, "shellies/") && strstr(topic, clientId) && strstr(topic, "/color/0/command") ) {
+  } else if ( strstr_P(topic, PSTR("shellies/")) && strstr(topic, clientId) && strstr_P(topic, PSTR("/color/0/command")) ) {
 
     if ( newPayload == "on" ) {
-      selectedEffect = 1;
+      selectedEffect = SOLID;
     } else {
-      selectedEffect = 0;
+      selectedEffect = OFF;
     }
     
-  } else if ( strstr(topic, "shellies/") && strstr(topic, clientId) && strstr(topic, "/color/0/set") ) {
+  } else if ( strstr_P(topic, PSTR("shellies/")) && strstr(topic, clientId) && strstr_P(topic, PSTR("/color/0/set")) ) {
 
     DynamicJsonDocument doc(2048);
     deserializeJson(doc, payload);
 
     if ( doc["turn"] == "on" ) {
-      selectedEffect = 1;
+      selectedEffect = SOLID;
     }
 
     if ( doc["effect"] != 0 ) {
       int effect = doc["effect"];
       switch ( effect ) {
-        case 1: selectedEffect = 18; break; // Meteor
-        case 2: selectedEffect = 13; break; // rainbowCycle
-        case 3: selectedEffect = 2;  break; // fadeInOut
-        case 4: selectedEffect = 9;  break; // sparkle
-        case 5: selectedEffect = 12; break; // colorWipe
-        case 6: selectedEffect = 24; break; // christmasChase
+        case 1: selectedEffect = METEORRAIN;     break; // Meteor
+        case 2: selectedEffect = RAINBOWCYCLE;   break; // rainbowCycle
+        case 3: selectedEffect = FADEINOUT;      break; // fadeInOut
+        case 4: selectedEffect = SPARKLE;        break; // sparkle
+        case 5: selectedEffect = COLORWIPE;      break; // colorWipe
+        case 6: selectedEffect = CHRISTMASCHASE; break; // christmasChase
       }
       //selectedEffect = max(min(doc["effect"]+1,2,24);
     }
 
     if ( doc["turn"] == "off" ) {
-      selectedEffect = 0;
+      selectedEffect = OFF;
     }
     
     int r = doc["red"];
@@ -902,22 +880,22 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     gBrightness = (int) (gain/100.0 * 255);
     
     #if DEBUG
-    Serial.println("Color found.");
-    Serial.print("R: ");
+    Serial.println(F("Color found."));
+    Serial.print(F("R: "));
     Serial.println(r,DEC);
-    Serial.print("G: ");
+    Serial.print(F("G: "));
     Serial.println(g,DEC);
-    Serial.print("B: ");
+    Serial.print(F("B: "));
     Serial.println(b,DEC);
     #endif
 
   } else if ( strstr(topic, MQTTBASE) && strstr(topic, clientId) ) {
     
-    if ( strstr(topic,"/set/idx") ) {
+    if ( strstr_P(topic, PSTR("/set/idx")) ) {
       
-      sprintf(c_idx,"%3d",max(min((int)newPayload.toInt(),999),1));
+      sprintf_P(c_idx, PSTR("%3d"), max(min((int)newPayload.toInt(),999),1));
       #if DEBUG
-      Serial.print("New idx: ");
+      Serial.print(F("New idx: "));
       Serial.println(c_idx);
       #endif
       
@@ -930,145 +908,147 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       EEPROM.end();
       delay(250);
   
-    } else if ( strstr(topic,"/set/effect") || strstr(topic,"/command/effect")) {
+    } else if ( strstr_P(topic, PSTR("/set/effect")) || strstr_P(topic, PSTR("/command/effect")) ) {
       
-      selectedEffect = (int)newPayload.toInt();
+      selectedEffect = (effects_t)newPayload.toInt();
       gHue = 0;           // reset hue
       breakEffect = true; // interrupt current effect
       
       #if DEBUG
-      Serial.print("New effect: ");
-      Serial.println(selectedEffect, DEC);
+      Serial.print(F("New effect: "));
+      Serial.println((int)selectedEffect, DEC);
       #endif
   
-    } else if ( strstr(topic,"/set/hue") ) {
+    } else if ( strstr_P(topic, PSTR("/set/hue")) ) {
       
       gHue = min(max((int)newPayload.toInt(),0),255);
       
       #if DEBUG
-      Serial.print("New hue: ");
+      Serial.print(F("New hue: "));
       Serial.println(gHue, DEC);
       #endif
   
-    } else if ( strstr(topic,"/set/brightness") ) {
+    } else if ( strstr_P(topic, PSTR("/set/brightness")) ) {
       
       gBrightness = min(max((int)newPayload.toInt(),0),255);
       
       #if DEBUG
-      Serial.print("New brightness: ");
+      Serial.print(F("New brightness: "));
       Serial.println(gBrightness, DEC);
       #endif
   
-    } else if ( strstr(topic,"/set/zones") ) {
+    } else if ( strstr_P(topic, PSTR("/set/zones")) ) {
 
-      int lNumZones = max(min((int)newPayload.toInt(),8),1);
-      #if DEBUG
-      Serial.print("New # of zones: ");
-      Serial.println(lNumZones, DEC);
-      #endif
+      String t, s;
+      int l, zones = 0, sections = 0;
+      char tnum[4];
+      eeprom_data_t e;
+      memset(&e, 0, sizeof(e));
       
-      // store configuration to EEPROM
-      EEPROM.begin(EEPROM_SIZE);
-      EEPROM.write(6, lNumZones+'0');
-      EEPROM.commit();
-      EEPROM.end();
-      delay(250);
-      
-    } else if ( strstr(topic,"/set/ledtype/") ) {
-
-      int zone = (int)(topic[strlen(topic)-1] - '0');
-      if ( zone < 0 || zone > MAXZONES-1 )
-        return;
-
-      newPayload.toCharArray(tmp, 7);
+      DynamicJsonDocument doc(2048);
+      deserializeJson(doc, payload);
 
       #if DEBUG
-      Serial.print("New LED type for zone ");
-      Serial.print(zone, DEC);
-      Serial.print(": ");
-      Serial.println(tmp);
+      Serial.print("JSON: ");
+      serializeJson(doc, Serial);
+      Serial.println();
       #endif
 
-      // store configuration to EEPROM
-      EEPROM.begin(EEPROM_SIZE);
-      for ( int i=0; i<6; i++ ) {
-        EEPROM.write(i + 7+(6+3+3*MAXSECTIONS)*zone, tmp[i]);
-      }
-      EEPROM.commit();
-      EEPROM.end();
-      delay(250);
-  
-    } else if ( strstr(topic,"/set/leds/") ) {
-
-      int zone = (int)(topic[strlen(topic)-1] - '0');
-      if ( zone < 0 || zone > numZones-1 )
+      if ( doc["zones"] == nullptr )
         return;
 
-      int lNumLEDs = max(min((int)newPayload.toInt(),999),1);
-      #if DEBUG
-      Serial.print("New # of LEDs for zone ");
-      Serial.print(zone, DEC);
-      Serial.print(": ");
-      Serial.println(lNumLEDs, DEC);
-      #endif
-      
-      // store configuration to EEPROM
-      sprintf(tmp, "%3d", lNumLEDs);
-      EEPROM.begin(EEPROM_SIZE);
-      for ( int i=0; i<3; i++ ) {
-        EEPROM.write(i + 6 + 7+(6+3+3*MAXSECTIONS)*zone, tmp[i]);
-      }
-      EEPROM.commit();
-      EEPROM.end();
-      delay(250);
-      
-    } else if ( strstr(topic,"/set/sections/") ) {
+      JsonArray arr = doc["zones"];
+      for (JsonVariant a : arr) {
 
-      int zone = (int)(topic[strlen(topic)-1] - '0');
-      if ( zone < 0 || zone > MAXZONES-1 )
-        return;
+        if (  a["ledtype"] == nullptr || a["leds"] == nullptr || a["sections"] == nullptr )
+          return;
 
-      int lSectionStart[MAXSECTIONS];
-      int sections = 0;
-      char *buf = strtok((char*)payload, ",;");
-      while ( buf != NULL ) {
-        lSectionStart[sections++] = atoi(buf);
-        buf = strtok(NULL, ",;");
+        l = a["leds"];
+        t = a["ledtype"].as<char*>();
+        s = a["sections"].as<char*>();
 
-        #if DEBUG
-        Serial.print("New section for zone ");
-        Serial.print(zone, DEC);
-        Serial.print(": ");
-        Serial.println(lSectionStart[sections-1]);
-        #endif
-      }
-
-      // store configuration to EEPROM
-      EEPROM.begin(EEPROM_SIZE);
-      for ( int s=0; s<MAXSECTIONS; s++ ) {
-        sprintf(tmp, "%3d", s>=sections ? 0 : lSectionStart[s]);
-        for ( int i=0; i<3; i++ ) {
-          EEPROM.write(i + 6 + 3 + 3*s + 7+(6+3+3*MAXSECTIONS)*zone, tmp[i]);
+        if ( (zones != 0 && t == "WS2801") || zones > 1 && t == "WS2811" ) {
+          #if DEBUG
+          Serial.print(F("Wrong LED type for zone "));
+          Serial.println(zones, DEC);
+          #endif
+          return;
         }
+        memcpy(e.zoneData[zones].ledType, t.c_str(), 6);
+        #if DEBUG
+        Serial.print(F("New LED type for zone "));
+        Serial.print(zones, DEC);
+        Serial.print(F(": "));
+        Serial.println(t.c_str());
+        #endif
+  
+        l = max(min(l,999),1);
+        sprintf_P(tnum, PSTR("%3d"),l);
+        memcpy(e.zoneData[zones].zoneLEDs, tnum, 3);
+        #if DEBUG
+        Serial.print(F("New # of LEDs for zone "));
+        Serial.print(zones, DEC);
+        Serial.print(F(": "));
+        Serial.println(l, DEC);
+        #endif
+  
+        char *buf = strtok((char*)s.c_str(), ",;");
+        while ( buf != NULL && sections<9 ) {
+          sprintf_P(tnum, PSTR("%3d"), atoi(buf));
+          memcpy(e.zoneData[zones].sectionStart[sections++], tnum, 3);
+  
+          #if DEBUG
+          Serial.print(F("New section for zone "));
+          Serial.print(zones, DEC);
+          Serial.print(F(": "));
+          Serial.println(atoi(buf),DEC);
+          #endif
+          
+          buf = strtok(NULL, ",;");
+        }
+        // memcpy_P(e.zoneData[zones].sectionStart[sections], PSTR("  0"), 3);
+        sections = 0; // reset sections for next zone
+
+        zones++;
+      }
+      
+      e.nZones = (char)zones + '0';
+      memcpy_P(e.esp, PSTR("esp"), 3);
+      sprintf_P(tnum, PSTR("%3d"), atoi(c_idx));
+      memcpy(e.idx, tnum, 3);
+
+      #if DEBUG
+      Serial.print(F("EEPROM data: "));
+      for ( int i=0; i<sizeof(e); i++ ) {
+        Serial.print(((char*)&e)[i], HEX);
+        Serial.print(":");
+      }
+      Serial.println();
+      #endif
+      
+      // store configuration to EEPROM
+      EEPROM.begin(EEPROM_SIZE);
+      for ( int i=0; i<sizeof(e); i++ ) {
+        EEPROM.write(i, ((char*)&e)[i]);
       }
       EEPROM.commit();
       EEPROM.end();
       delay(250);
-  
-    } else if ( strstr(topic,"/command/restart") ) {
+
+    } else if ( strstr_P(topic, PSTR("/command/restart")) ) {
 
       #if DEBUG
-      Serial.println("Restarting...");
+      Serial.println(F("Restarting..."));
       #endif
       
       // restart ESP
       ESP.reset();
       delay(2000);
       
-    } else if ( strstr(topic,"/command/reset") && (int)(payload[strlen((char*)payload)-1] - '0')==1 ) {
+    } else if ( strstr_P(topic, PSTR("/command/reset")) && (int)(payload[strlen((char*)payload)-1] - '0')==1 ) {
 
       #if DEBUG
-      Serial.println("Factory reset...");
+      Serial.println(F("Factory reset..."));
       #endif
       
       // erase EEPROM
@@ -1080,19 +1060,19 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       EEPROM.end();
       delay(250);  // wait for write to complete
       #if DEBUG
-      Serial.println("Erased EEPROM");
+      Serial.println(F("Erased EEPROM"));
       #endif
   
       // clean FS
       SPIFFS.format();
       #if DEBUG
-      Serial.println("SPIFFS formatted");
+      Serial.println(F("SPIFFS formatted"));
       #endif
   
       // clear WiFi data & disconnect
       WiFi.disconnect();
       #if DEBUG
-      Serial.println("WiFi disconnected");
+      Serial.println(F("WiFi disconnected"));
       #endif
       
       // restart ESP
@@ -1109,7 +1089,7 @@ void mqtt_reconnect() {
   char tmp[64];
 
   #if DEBUG
-  Serial.print("Reconnecting.");
+  Serial.print(F("Reconnecting."));
   #endif
 
   // Loop until we're reconnected
@@ -1125,17 +1105,17 @@ void mqtt_reconnect() {
       doc["zones"] = numZones;
 
       size_t n = serializeJson(doc, msg);
-      sprintf(tmp, "%s/announce", outTopic);
+      sprintf_P(tmp, PSTR("%s/announce"), outTopic);
       client.publish(tmp, msg, true);  // retain the announcement
       
       // ... and resubscribe
-      sprintf(tmp, "%s/%s/command/#", MQTTBASE, clientId);
+      sprintf_P(tmp, PSTR("%s/%s/command/#"), MQTTBASE, clientId);
       client.subscribe(tmp);
-      sprintf(tmp, "%s/%s/set/#", MQTTBASE, clientId);
+      sprintf_P(tmp, PSTR("%s/%s/set/#"), MQTTBASE, clientId);
       client.subscribe(tmp);
       client.subscribe("domoticz/out");
       #if DEBUG
-      Serial.println("\r\nConnected & subscribed.");
+      Serial.println(F("\r\nConnected & subscribed."));
       #endif
     } else {
       #if DEBUG

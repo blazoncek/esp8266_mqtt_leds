@@ -2,7 +2,7 @@
  * effects.h  - master include for LED effects
  */
  
-#define MAXZONES 4                          // can be 5 if also using RX/TX pins, if not using WS2801 pixels can be up to 8
+#define MAXZONES 5                          // can be 5 if also using RX/TX pins, if not using WS2801 pixels can be up to 8
 #define MAXSECTIONS 9                       // don't go wild; 9 is enough
 
 extern int numLEDs[];
@@ -10,6 +10,37 @@ extern int numZones;
 extern int numSections[];
 extern int sectionStart[][MAXSECTIONS];
 extern int sectionEnd[][MAXSECTIONS];
+
+// Effect enums
+enum EFFECTS {
+  OFF = 0,
+  SOLID,
+  FADEINOUT,
+  STROBE,
+  HALLOWEENEYES,
+  CYLONBOUNCE,
+  NEWKITT,
+  TWINKLE,
+  TWINKLERANDOM,
+  SPARKLE,
+  SNOWSPARKLE,
+  RUNNINGLIGHTS,
+  COLORWIPE,
+  RAINBOWCYCLE,
+  THEATRECHASE,
+  RAINBOWCHASE,
+  FIRE,
+  BOUNCINGBALL,
+  BOUNCINGCOLOREDBALLS,
+  METEORRAIN,
+  SINELON,
+  BPM,
+  JUGGLE,
+  COLORCHASE,
+  CHRISTMASCHASE,
+  LAST_EFFECT = CHRISTMASCHASE
+};
+typedef EFFECTS effects_t;
 
 // This is an array of leds.  One item for each led in your strip.
 extern CRGB *leds[], gRGB;

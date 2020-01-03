@@ -23,9 +23,9 @@ void handleRoot() {
   int min = sec / 60;
   int hr = min / 60;
 
-  snprintf(temp, 400,
+  snprintf_P(temp, 400,
 
-           "<html>\
+           PSTR("<html>\
   <head>\
     <meta http-equiv='refresh' content='5'/>\
     <title>ESP8266 Demo</title>\
@@ -36,9 +36,8 @@ void handleRoot() {
   <body>\
     <h1>Hello from ESP8266!</h1>\
     <p>Uptime: %02d:%02d:%02d</p>\
-    <img src=\"/test.svg\" />\
   </body>\
-</html>",
+</html>"),
 
            hr, min % 60, sec % 60
           );
@@ -61,7 +60,7 @@ void handleNotFound() {
 
   server.send(404, "text/plain", message);
 }
-
+/*
 String getContentType(String filename) {
   if (server.hasArg("download")) {
     return "application/octet-stream";
@@ -203,3 +202,4 @@ void handleFileList() {
   output += "]";
   server.send(200, "text/json", output);
 }
+*/
