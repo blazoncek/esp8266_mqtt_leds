@@ -1,4 +1,6 @@
 #include "FastLED.h"
+
+#include "eepromdata.h"
 #include "effects.h"
 
 boolean breakEffect = false;
@@ -295,7 +297,7 @@ void Twinkle(int SpeedDelay, boolean OnlyOne) {
   for ( int z=0; z<numZones; z++ ) {
 
     if ( !OnlyOne )
-      fadeToBlackBy(leds[z], numLEDs[z], 64);
+      fadeToBlackBy(leds[z], numLEDs[z], 32);
     else
       fill_solid(leds[z], numLEDs[z], CRGB::Black);
 
@@ -378,11 +380,9 @@ void juggle(int SpeedDelay) {
 void Sparkle(int SpeedDelay) {
 
   for ( int z=0; z<numZones; z++ ) {
+    fill_solid(leds[z], numLEDs[z], CRGB::Black);
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-
-      setAll(z, s, CRGB::Black);
-      
       int pos = random16(sectionStart[z][s], sectionEnd[z][s]);
       setPixel(z, pos, CRGB::White);
     }

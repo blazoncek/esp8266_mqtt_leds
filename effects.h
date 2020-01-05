@@ -2,14 +2,14 @@
  * effects.h  - master include for LED effects
  */
  
-#define MAXZONES 5                          // can be 5 if also using RX/TX pins, if not using WS2801 pixels can be up to 8
-#define MAXSECTIONS 9                       // don't go wild; 9 is enough
+// This is an array of leds.  One item for each led in your strip.
+extern CRGB *leds[], gRGB;
 
-extern int numLEDs[];
-extern int numZones;
-extern int numSections[];
-extern int sectionStart[][MAXSECTIONS];
-extern int sectionEnd[][MAXSECTIONS];
+extern boolean breakEffect;
+extern uint8_t gHue, gBrightness;
+
+// from master file
+void showStrip();
 
 // Effect enums
 enum EFFECTS {
@@ -42,17 +42,8 @@ enum EFFECTS {
 };
 typedef EFFECTS effects_t;
 
-// This is an array of leds.  One item for each led in your strip.
-extern CRGB *leds[], gRGB;
-
-extern boolean breakEffect;
-extern int gHue, gBrightness;
-
 // Fire effect static data (byte[numLEDs]) allocated at init
 extern byte *heat[];
-
-// from master file
-void showStrip();
 
 // LED effects
 void solidColor(CRGB c);

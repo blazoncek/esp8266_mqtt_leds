@@ -45,59 +45,29 @@
 
 // local includes
 
+#include "eepromdata.h"
 #include "effects.h"
 #include "webpages.h"
 
-#define DEBUG 1
+// global variables
 
-int numZones = 0;                           // number of zones (LED strips), each zone requires a GPIO pin (or two)
-int numLEDs[MAXZONES];                      // number of pixels in each zone
-int numSections[MAXZONES];                  // number of sections in each zone
-int sectionStart[MAXZONES][MAXSECTIONS];    // start pixel of each section in each zone
-int sectionEnd[MAXZONES][MAXSECTIONS];      // last pixel of each section in each zone
-char zoneLEDType[MAXZONES][10];             // LED type for each zone (WS2801, WS2811, WS2812, ...)
+eeprom_data_t e;
+
+uint8_t numZones = 0;                         // number of zones (LED strips), each zone requires a GPIO pin (or two)
+uint16_t numLEDs[MAXZONES];                   // number of pixels in each zone
+uint8_t numSections[MAXZONES];                // number of sections in each zone
+uint16_t sectionStart[MAXZONES][MAXSECTIONS]; // start pixel of each section in each zone
+uint16_t sectionEnd[MAXZONES][MAXSECTIONS];   // last pixel of each section in each zone
+char zoneLEDType[MAXZONES][7];                // LED type for each zone (WS2801, WS2811, WS2812, ...)
 
 // This is an array of leds.  One item for each led in your strip.
 CRGB *leds[MAXZONES];
 
-// EEPROM layout:
-// [0-2]   esp ................ verification string
-// [3-5]   999 ................ Domoticz idx
-// [6]     9   ................ number of used zones
-// [7-12]  XXXXXX ............. zone 1 LED type (WS2801 (only on zone 0), WS2811, WS2812)
-// [13-15] 999 ................ number of LEDs in zone
-// [16-18] 999 ................ start of section 1
-// [19-21] 999 ................ start of section 2
-// [22-24] 999 ................ start of section 3
-// [25-27] 999 ................ start of section 4
-// [28-30] 999 ................ start of section 5
-// [31-33] 999 ................ start of section 6
-// [34-36] 999 ................ start of section 7
-// [37-39] 999 ................ start of section 8
-// [40-42] 999 ................ start of section 9
-// [43-48] XXXXXX ............. zone 2 LED type
-// ....
-#define EEPROM_SIZE (7+(6+3+3*MAXSECTIONS)*MAXZONES)   // limit is 512 bytes
-
-typedef struct ZONE_DATA_T {
-  char ledType[6];
-  char zoneLEDs[3];
-  char sectionStart[MAXSECTIONS][3];
-} zone_data_t;
-
-typedef struct EEPROM_DATA_T {
-  char esp[3];
-  char idx[3];
-  char nZones;
-  zone_data_t zoneData[MAXZONES];
-} eeprom_data_t;
-
-// global variables
+uint8_t gHue = 0;
+uint8_t gBrightness = 255;
+CRGB gRGB;
 
 effects_t selectedEffect = OFF;
-int gHue = 0;
-int gBrightness = 255;
-CRGB gRGB;
 
 // Effect's speed should be between 30 FPS and 60 FPS, depending on length (density) of LED strip
 // <51 pixels -> 30 FPS
@@ -120,7 +90,7 @@ bool shouldSaveConfig = false;
 char msg[256];
 char outTopic[64];
 char clientId[20];  // MQTT client ID
-char MQTTBASE[16]    = "LEDstrip";
+char MQTTBASE[16] = "LEDstrip";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -151,7 +121,6 @@ static const char [] PROGMEM = "";
 // main setup
 void setup() {
   char mac_address[16];
-  char str[EEPROM_SIZE+1];
   char tmp[32];
 
   Serial.begin(115200);
@@ -186,27 +155,29 @@ void setup() {
   Serial.println();
   Serial.print(F("EEPROM data: "));
   #endif
+  // read data from EEPROM
   for ( int i=0; i<EEPROM_SIZE; i++ ) {
-    str[i] = EEPROM.read(i);
+    ((char*)&e)[i] = EEPROM.read(i);
     #if DEBUG
-    Serial.print(str[i], HEX);
+    Serial.print(((char*)&e)[i], HEX);
     Serial.print(F(":"));
     #endif
   }
   #if DEBUG
   Serial.print(F(" ("));
-  Serial.print(str);
+  Serial.print(((char*)&e));
   Serial.println(F(")"));
   #endif
 
-  // read data from EEPROM
-  if ( strncmp_P(str,PSTR("esp"),3)==0 ) {
-    strncpy(tmp, &str[3], 3);
+  // verify data
+  if ( strncmp_P((char*)&e, PSTR("esp"), 3)==0 ) {
+    memcpy(tmp, e.idx, 3);
+    tmp[4] = '\0';
     sprintf_P(c_idx, PSTR("%d"), atoi(tmp)); 
-    numZones = str[6] - '0';
+    numZones = ((char*)&e)[6] - '0';
   } else {
-    strcpy(c_idx, "0");
-    numZones=0;
+    strcpy_P(c_idx, PSTR("0"));
+    numZones = 0;
   }
 
   #if DEBUG
@@ -218,9 +189,9 @@ void setup() {
 
   for ( int i=0; i<numZones; i++ ) {
     char tmp[10];
-    strncpy(zoneLEDType[i], &str[7+(6+3+3*MAXSECTIONS)*i], 6);  // LED type for zone
+    memcpy(zoneLEDType[i], e.zoneData[i].ledType, 6);  // LED type for zone
     zoneLEDType[i][7] = '\0';
-    strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 6], 3);
+    memcpy(tmp, e.zoneData[i].zoneLEDs, 3);
     tmp[4] = '\0';
     numLEDs[i] = max(1,atoi(tmp));       // number of LEDs in zone (min 1, otherwise FastLED crashes)
 
@@ -236,7 +207,7 @@ void setup() {
     // get starting pixels for each section (0=empty section (except for first))
     numSections[i] = 0;
     for ( int j=0; j<MAXSECTIONS; j++ ) {
-      strncpy(tmp, &str[7+(6+3+3*MAXSECTIONS)*i + 6 + 3 + 3*j], 3);
+      memcpy(tmp, e.zoneData[i].sectionStart[j], 3);
       tmp[4] = '\0';
       sectionStart[i][j] = atoi(tmp);
       sectionEnd[i][j] = numLEDs[i];  // will be overwritten later
@@ -326,9 +297,6 @@ void setup() {
   WiFiManagerParameter custom_username(_USERNAME,  _USERNAME, username, 32);
   WiFiManagerParameter custom_password(_PASSWORD,  _PASSWORD, password, 32);
 
-  strcpy_P(tmp, PSTR("Domoticz switch IDX"));
-  WiFiManagerParameter custom_idx("idx", tmp, c_idx, 3);
-
   // WiFiManager
   // Local intialization. Once its business is done, there is no need to keep it around
   WiFiManager wifiManager;
@@ -347,8 +315,6 @@ void setup() {
   wifiManager.addParameter(&custom_mqtt_port);
   wifiManager.addParameter(&custom_username);
   wifiManager.addParameter(&custom_password);
-
-  wifiManager.addParameter(&custom_idx);
 
   // set minimum quality of signal so it ignores AP's under that quality
   // defaults to 8%
@@ -376,8 +342,6 @@ void setup() {
   strcpy(username, custom_username.getValue());
   strcpy(password, custom_password.getValue());
 
-  strcpy(c_idx, custom_idx.getValue());
-
   //save the custom parameters to FS
   if ( shouldSaveConfig ) {
     DynamicJsonDocument doc(1024);
@@ -399,14 +363,6 @@ void setup() {
       serializeJson(doc, Serial);
       #endif
     }
-
-    // write idx info to EEPROM
-    sprintf_P(str, PSTR("esp%3s0"), c_idx);
-    for ( int i=0; i<strlen(str); i++ ) {
-      EEPROM.write(i, str[i]);
-    }
-    EEPROM.commit();
-    delay(250);
 
   }
 //----------------------------------------------------------
@@ -543,9 +499,6 @@ void setup() {
   server.on("/", handleRoot);
   server.on("/set", handleSet);
   server.on("/set/", handleSet);
-//  server.on("/inline", []() {
-//    server.send(200, "text/plain", "this works as well");
-//  });
   server.onNotFound(handleNotFound);
   server.begin();
 }
@@ -605,11 +558,11 @@ void loop() {
               break;
               
     case TWINKLE :
-              Twinkle(100, false);
+              Twinkle(50, false);
               break;
               
     case TWINKLERANDOM :
-              TwinkleRandom(100, false);
+              TwinkleRandom(50, false);
               break;
               
     case SPARKLE :
@@ -801,7 +754,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
 
         gBrightness = doc["Level"];
-        gBrightness = min(max(gBrightness,0),255);
+        gBrightness = min(max((int)gBrightness,0),255);
         FastLED.setBrightness(gBrightness);
 
         #if DEBUG
@@ -944,7 +897,6 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       String t, s;
       int l, zones = 0, sections = 0;
       char tnum[4];
-      eeprom_data_t e;
       memset(&e, 0, sizeof(e));
       
       DynamicJsonDocument doc(2048);
