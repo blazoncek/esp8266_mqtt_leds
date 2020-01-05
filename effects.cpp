@@ -18,9 +18,7 @@ int gCurrentPattern = 0;
 void solidColor(CRGB c) {
   //showColor(&c)
   for ( int z=0; z<numZones; z++ ) {
-    for ( int p=0; p<numLEDs[z]; p++ ) {
-      setPixel(z, p, c);
-    }
+    fill_solid(leds[z], numLEDs[z], c);
   }
   showStrip();
   FastLED.delay(10);  
@@ -50,9 +48,7 @@ void FadeInOut() {
   CRGB c = CHSV(gHue, 255, level);
   
   for ( int z=0; z<numZones; z++ ) {
-    for ( int s=0; s<numSections[z]; s++ ) {
-      setAll(z, s, c);
-    }
+    fill_solid(leds[z], numLEDs[z], c);
   }
   showStrip();
   FastLED.delay(10);
@@ -65,17 +61,13 @@ void FadeInOut() {
 void Strobe(CRGB c, int FlashDelay) {
 
   for ( int z=0; z<numZones; z++ ) {
-    for ( int s=0; s<numSections[z]; s++ ) {
-      setAll(z, s, c);
-    }
+    fill_solid(leds[z], numLEDs[z], c);
   }
   showStrip();
   FastLED.delay(FlashDelay/2);
   
   for ( int z=0; z<numZones; z++ ) {
-    for ( int s=0; s<numSections[z]; s++ ) {
-      setAll(z, s, CRGB::Black);
-    }
+    fill_solid(leds[z], numLEDs[z], CRGB::Black);
   }
   showStrip();
   FastLED.delay(FlashDelay/2);
@@ -84,7 +76,13 @@ void Strobe(CRGB c, int FlashDelay) {
 //------------------------------------------------------//
 void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
   int i;
+  static unsigned long wait = 0;
 
+  if ( wait > millis() ) {
+    return;
+  }
+  wait = millis() + random16(500,2500);
+  
   for ( int z=0; z<numZones; z++ ) {
 
     if ( Fade )
@@ -99,35 +97,31 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
 
       // show eyes
       for ( i=0; i<EyeWidth; i++ ) {
-        setPixel(z, StartPoint + i, c);
-        setPixel(z, Start2ndEye + i, c);
+        leds[z][StartPoint + i] = leds[z][Start2ndEye + i] = c;
       }
     }
   }
   showStrip();
-  FastLED.delay(random16(500,2500));
+  FastLED.delay(10);
 }
 
 //------------------------------------------------------//
 void CylonBounce(int EyeSizePct, int SpeedDelay) {
   CRGB c = CRGB::Red;
-  static boolean dir = false; // start left-to-right
+  static boolean dir = false;   // start left-to-right
   static unsigned int pct = 0;  // starting position
-  unsigned int EyeSize;
   
   for ( int z=0; z<numZones; z++ ) {
+    fill_solid(leds[z], numLEDs[z], CRGB::Black);
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      EyeSize = EyeSizePct * ledsPerSection / 100;
+      unsigned int EyeSize = EyeSizePct * ledsPerSection / 100;
       unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize-2)) / 100);
-
-      setAll(z, s, CRGB::Black);
-
-      setPixel(z, pos, c/8);
+      leds[z][pos] = c/8;
       for ( int j=1; j<=EyeSize; j++ ) {
-        setPixel(z, pos+j, c); 
+        leds[z][pos+j] = c; 
       }
-      setPixel(z, pos+EyeSize+1, c/8);
+      leds[z][pos+EyeSize+1] = c/8;
     }
   }
   
@@ -179,8 +173,8 @@ void CenterToOutside(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
       unsigned int pos = ((pct * (ledsPerSection-EyeSize)) / 100);
 
       for ( int j=0; j<EyeSize; j++ ) {
-        setPixel(z, sectionStart[z][s]+pos+j, c); 
-        setPixel(z, sectionEnd[z][s]-pos-j, c); 
+        leds[z][sectionStart[z][s]+pos+j] = c; 
+        leds[z][sectionEnd[z][s]-pos-j] = c; 
       }
     }
   }
@@ -212,8 +206,8 @@ void OutsideToCenter(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
       unsigned int pos = ((pct * (ledsPerSection-EyeSize)) / 100);
 
       for ( int j=1; j<=EyeSize; j++ ) {
-        setPixel(z, sectionStart[z][s]+pos+j, c); 
-        setPixel(z, sectionEnd[z][s]-pos-j, c); 
+        leds[z][sectionStart[z][s]+pos+j] = c; 
+        leds[z][sectionEnd[z][s]-pos-j] = c; 
       }
     }
   }
@@ -245,7 +239,7 @@ void LeftToRight(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
       unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
 
       for ( int j=0; j<EyeSize; j++ ) {
-        setPixel(z, pos+j, c); 
+        leds[z][pos+j] = c; 
       }
     }
   }
@@ -277,7 +271,7 @@ void RightToLeft(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
       unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
 
       for ( int j=0; j<EyeSize; j++ ) {
-        setPixel(z, pos+j, c); 
+        leds[z][pos+j] = c; 
       }
     }
   }
@@ -304,7 +298,7 @@ void Twinkle(int SpeedDelay, boolean OnlyOne) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       int pos = random16(sectionStart[z][s], sectionEnd[z][s]);
-      setPixel(z, pos, CHSV(gHue++, 255, 255));
+      leds[z][pos] =CHSV(gHue++, 255, 255);
     }
   }
   showStrip();
@@ -384,7 +378,7 @@ void Sparkle(int SpeedDelay) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       int pos = random16(sectionStart[z][s], sectionEnd[z][s]);
-      setPixel(z, pos, CRGB::White);
+      leds[z][pos] = CRGB::White;
     }
   }
   showStrip();
@@ -396,8 +390,8 @@ void snowSparkle(int SparkleDelay, int SpeedDelay) {
   CRGB c = CRGB(16,16,16);
   
   for ( int z=0; z<numZones; z++ ) {
+    fill_solid(leds[z], numLEDs[z], c);
     for ( int s=0; s<numSections[z]; s++ ) {
-      setAll(z, s, c);
       addGlitter(z, s, 90);
     }
   }
@@ -405,9 +399,7 @@ void snowSparkle(int SparkleDelay, int SpeedDelay) {
   FastLED.delay(SparkleDelay);
   
   for ( int z=0; z<numZones; z++ ) {
-    for ( int s=0; s<numSections[z]; s++ ) {
-      setAll(z, s, c);
-    }
+    fill_solid(leds[z], numLEDs[z], c);
   }
   showStrip();
   FastLED.delay(SpeedDelay);
@@ -423,7 +415,7 @@ void runningLights(int WaveDelay) {
       
       for ( int i=0; i<ledsPerSection; i++ ) {
         unsigned int level = sin8( (i*1280/ledsPerSection + offset) & 0xFF );  // 5 waves
-        setPixel(z, sectionStart[z][s] + i, CHSV(gHue, 255, level));
+        leds[z][sectionStart[z][s] + i] = CHSV(gHue, 255, level);
       }
     }
   }
@@ -447,11 +439,11 @@ void colorWipe(int SpeedDelay, boolean Reverse) {
       unsigned int pos = sectionStart[z][s] + ((pct * ledsPerSection) / 100);
       if ( pct > 0 && ledsPerSection > 100 ) {
         for ( int i=sectionStart[z][s] + (((pct-1) * ledsPerSection) / 100); i<pos; i++ ) {
-          setPixel(z, pos, blank ? CRGB::Black : c);
+          leds[z][pos] = blank ? CRGB::Black : c;
         }
       } else {
         if ( pos < sectionEnd[z][s] )
-          setPixel(z, pos, blank ? CRGB::Black : c);
+          leds[z][pos] = blank ? CRGB::Black : c;
       }
     }
   }
@@ -485,11 +477,9 @@ void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
   for ( int q=0; q<window; q++ ) {
 
     for ( int z=0; z<numZones; z++ ) {
+      fill_solid(leds[z], numLEDs[z], c[2]);
       for ( int s=0; s<numSections[z]; s++ ) {
         int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-
-        setAll(z, s, c[2]); // clear each zone
-
         for ( int i=0; i<ledsPerSection; i+=window ) {
           // turn LEDs on: ..++++####....++++####..   (size=4, . = black, + = c1, # = c2)
           // turn LEDs on: ..####++++....####++++..   (size=4, . = black, + = c1, # = c2, Reverse)
@@ -497,15 +487,15 @@ void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
             if ( Reverse ) {
               pos = (window-q-1) + (Size-j-1);
               if ( (pos+Size)%window + i < ledsPerSection )
-                setPixel(z, sectionStart[z][s] + (pos+Size)%window + i, c[0]);
+                leds[z][sectionStart[z][s] + (pos+Size)%window + i] = c[0];
               if ( pos%window + i < ledsPerSection )
-                setPixel(z, sectionStart[z][s] + pos%window + i, c[1]);
+                leds[z][sectionStart[z][s] + pos%window + i] = c[1];
             } else {
               pos = q + j;
               if ( pos%window + i < ledsPerSection )
-                setPixel(z, sectionStart[z][s] + pos%window + i, c[0]);
+                leds[z][sectionStart[z][s] + pos%window + i] = c[0];
               if ( (pos+Size)%window + i < ledsPerSection )
-                setPixel(z, sectionStart[z][s] + (pos+Size)%window + i, c[1]);
+                leds[z][sectionStart[z][s] + (pos+Size)%window + i] = c[1];
             }
           }
         }
@@ -539,7 +529,7 @@ void rainbowChase(int SpeedDelay) {
       fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue, max(1,255/ledsPerSection));
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
         if ( i%3 != q ) {
-          setPixel(z,i,CRGB::Black);
+          leds[z][i] = CRGB::Black;
         }
       }
     }
@@ -610,7 +600,7 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
     
       // Step 4.  Convert heat to LED colors
       for ( int j=sectionStart[z][s]; j<sectionEnd[z][s]; j++ ) {
-        setPixel(z, j, HeatColor(heat[z][j]));  // from FastLED library
+        leds[z][j] = HeatColor(heat[z][j]);  // from FastLED library
       }
     }
   }
@@ -647,9 +637,9 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
     if ( breakEffect ) return;
     
     for ( int z=0; z<numZones; z++ ) {
+      fill_solid(leds[z], numLEDs[z], CRGB::Black);
       for ( int s=0; s<numSections[z]; s++ ) {
         int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-        setAll(z, s, CRGB::Black);  // reset all pixels in zone
        
         for ( int i=0; i<BallCount; i++ ) {
           TimeSinceLastBounce[i] =  millis() - ClockTimeSinceLastBounce[i];
@@ -669,7 +659,7 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
     
         ballsStillBouncing = false; // assume no balls bouncing
         for ( int i=0; i<BallCount; i++ ) {
-          setPixel(z, sectionStart[z][s]+Position[i],colors[i]);
+          leds[z][sectionStart[z][s]+Position[i]] = colors[i];
           if ( ballBouncing[i] ) {
             ballsStillBouncing = true;
           }
@@ -700,7 +690,7 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
 
       for ( int j=0; j<meteorSize; j++ ) {
         if ( (pos-j < sectionEnd[z][s]) && (pos-j >= sectionStart[z][s]) ) {
-          setPixel(z, pos-j, CRGB::White);
+          leds[z][pos-j] = CRGB::White;
         } 
       }
     }
@@ -711,7 +701,6 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
 
   if ( pct++ == 100 ) {
     pct = 0;
-    //FastLED.delay(100); // add a bit of delay between meteors
   }
 }
 
@@ -727,7 +716,7 @@ void setPixel(int zone, int pixel, CRGB c) {
 // Set all LEDs to a given color
 void setAll(int zone, int section, CRGB c) {
   for ( int p=sectionStart[zone][section]; p<sectionEnd[zone][section]; p++ ) {
-    setPixel(zone, p, c); 
+    leds[zone][p] = c; 
   }
 }
 

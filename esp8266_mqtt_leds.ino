@@ -550,11 +550,11 @@ void loop() {
               break;
               
     case CYLONBOUNCE :
-              CylonBounce(8, 10); // 100% / 1000 ms
+              CylonBounce(8, 5); // 100% / 500 ms
               break;
               
     case NEWKITT :
-              NewKITT(12, 8);
+              NewKITT(10, 5);
               break;
               
     case TWINKLE :
@@ -578,7 +578,7 @@ void loop() {
               break;
               
     case COLORWIPE :
-              colorWipe(10);
+              colorWipe(5);
               break;
 
     case RAINBOWCYCLE :
