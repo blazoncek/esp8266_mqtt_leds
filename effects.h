@@ -38,7 +38,8 @@ enum EFFECTS {
   JUGGLE,
   COLORCHASE,
   CHRISTMASCHASE,
-  LAST_EFFECT = CHRISTMASCHASE
+  RAINBOWBOUNCE,
+  LAST_EFFECT = RAINBOWBOUNCE
 };
 typedef EFFECTS effects_t;
 
@@ -71,6 +72,7 @@ void christmasChase(int Size, int SpeedDelay=200, boolean Reverse=false);
 void theaterChase(CRGB c, int SpeedDelay=200);
 void rainbowCycle(int SpeedDelay=10);
 void rainbowChase(int SpeedDelay=200);
+void rainbowBounce(int EyeSizePct=10, int SpeedDelay=10);
 void Fire(int Cooling, int Sparking, int SpeedDelay);
 void bouncingColoredBalls(int BallCount, CRGB colors[]);
 void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);

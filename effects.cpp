@@ -556,6 +556,35 @@ void rainbowCycle(int SpeedDelay) {
 }
 
 //------------------------------------------------------//
+void rainbowBounce(int EyeSizePct, int SpeedDelay) {
+  static boolean dir = false;   // start left-to-right
+  static unsigned int pct = 0;  // starting position
+  
+  for ( int z=0; z<numZones; z++ ) {
+    fill_solid(leds[z], numLEDs[z], CRGB::Black);
+    for ( int s=0; s<numSections[z]; s++ ) {
+      unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
+      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
+      fill_rainbow(&leds[z][pos], EyeSize, 0, max(1,(int)(255/EyeSize)));
+    }
+  }
+  
+  showStrip();
+  FastLED.delay(SpeedDelay);
+
+  if ( dir ) {
+    pct--;
+  } else {
+    pct++;
+  }
+
+  if ( pct == 100 || pct == 0) {
+    dir = !dir;
+  }
+}
+
+//------------------------------------------------------//
 // borrowed from FastLED demo
 void Fire(int Cooling, int Sparking, int SpeedDelay) {
   int cooldown;

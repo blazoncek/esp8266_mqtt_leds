@@ -43,6 +43,11 @@
 // WS2811 uses pins GPIO0 (zone 0) and GPIO4 (zone 2)
 // WS2812 uses PINS GPIO0, 4, 2, 5, 15, 13 
 
+// NOTE: Be aware, that driving # of LEDs takes time. Due to ESP8266 serial nature (use ESP32 if you want paralell
+// execution) only about 400-450 LED pixels can be driven with 30 FPS.
+// If you go beyond 300 pixels you may notice some effects becoming slow. Using slow pixels (e.g. WS2801) doesn't
+// help either.
+
 // local includes
 
 #include "eepromdata.h"
@@ -53,18 +58,18 @@
 
 eeprom_data_t e;
 
-uint8_t numZones = 0;                         // number of zones (LED strips), each zone requires a GPIO pin (or two)
+uint8_t  numZones = 0;                        // number of zones (LED strips), each zone requires a GPIO pin (or two)
 uint16_t numLEDs[MAXZONES];                   // number of pixels in each zone
-uint8_t numSections[MAXZONES];                // number of sections in each zone
+uint8_t  numSections[MAXZONES];               // number of sections in each zone
 uint16_t sectionStart[MAXZONES][MAXSECTIONS]; // start pixel of each section in each zone
 uint16_t sectionEnd[MAXZONES][MAXSECTIONS];   // last pixel of each section in each zone
-char zoneLEDType[MAXZONES][7];                // LED type for each zone (WS2801, WS2811, WS2812, ...)
+char     zoneLEDType[MAXZONES][7];            // LED type for each zone (WS2801, WS2811, WS2812, ...)
 
 // This is an array of leds.  One item for each led in your strip.
 CRGB *leds[MAXZONES];
 
 uint8_t gHue = 0;
-uint8_t gBrightness = 255;
+uint8_t gBrightness = 255;  // used for solid effect
 CRGB gRGB;
 
 effects_t selectedEffect = OFF;
@@ -76,7 +81,7 @@ effects_t selectedEffect = OFF;
 // 151-200 pixels -> 75FPS
 // ...
 
-// Update these with values suitable for your network.
+// Update these with values suitable for your network (or leave empty to use WiFiManager).
 char mqtt_server[40] = "";
 char mqtt_port[7]    = "1883";
 char username[33]    = "";
@@ -491,6 +496,7 @@ void setup() {
 
   // web server setup
   if (MDNS.begin(clientId)) {
+    MDNS.addService("http", "tcp", 80);
     #if DEBUG
     Serial.println(F("MDNS responder started."));
     #endif
@@ -642,6 +648,10 @@ void loop() {
               christmasChase(4);
               break;
 
+    case RAINBOWBOUNCE :
+              rainbowBounce(20, 5);
+              break;
+              
   }
   breakEffect = false;
 

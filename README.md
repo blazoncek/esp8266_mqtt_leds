@@ -1,13 +1,13 @@
 # ESP8266/ESP01 firmware to control WS28xx LED pixels used for holiday lights
 Simple holiday lights ESP8266 firmware with 20+ effects directly controllable from Domoticz. Number of LEDs per strip is configurable via MQTT message as is the type of LEDs used.
-Supports multiple zones (on multiple pins; max: 8) and up to 9 sections in each zone.
+Supports multiple zones (on multiple pins; max: 6) and up to 9 sections in each zone.
 Also supports Domoticz RGBW Switch type natively.
 
 ### Features
 - 20+ LED effects (
 - Set-up on first use / configure via MQTT
 - Uses WiFi Manager for initial configuration
-- Change LED type & number of LEDs via MQTT message
+- Change LED type & number of LEDs via MQTT message or embedded web interface
 - Restart and/or reset ESP to initial state via MQTT message
 - Supports OTA updates
 - Supports: WS2801, WS2811 and WS2812B LED strips
@@ -18,6 +18,7 @@ Also supports Domoticz RGBW Switch type natively.
 - Use GPIO 0,4,2,5,15,13 pins for non-SPI based chips (3-wire pixels WS2812)
 - Use only zones 0 and 1 for WS2811 pixels
 - Use 512k or greater SPIFFS if possible (for OTA updates)
+- Configure via embedded web server
 - Configure via MQTT message:
   - LEDstrip/led-xxxxxx/set/zones [{JSON}] `zone 0 configuration in JSON format`
     - {JSON} = { "zones":[{"ledtype":"WSxxxx", "leds":50, "sections":"0,25"},{"ledtype":...}] }
@@ -31,3 +32,5 @@ Also supports Domoticz RGBW Switch type natively.
   - LEDstrip/led-xxxxxx/command/restart
   - LEDstrip/led-xxxxxx/command/reset [1] `factory reset`
 - In Domoticz create a virtual Selector Switch, with options for each effect
+- Due to ESP8266 HW limitations and speed of LED updates it is only possible to drive about 400-450 LEDs
+
