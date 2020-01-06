@@ -106,17 +106,26 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
 }
 
 //------------------------------------------------------//
-void CylonBounce(int EyeSizePct, int SpeedDelay) {
-  CRGB c = CRGB::Red;
+void CylonBounce(int EyeSizePct, int SweepsPerMinute) {
   static boolean dir = false;   // start left-to-right
   static unsigned int pct = 0;  // starting position
+  CRGB c = CRGB::Red;
   
+  uint8_t beat = beat8(SweepsPerMinute)*100/255;
+  if ( pct == beat ) {  // if there is no change in position just exit
+    FastLED.delay(10);
+    return;
+  } else if ( pct > beat ) {  // roll-over, erase the section
+    dir = !dir;
+  }
+  pct = beat; // percent fill
+
   for ( int z=0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], CRGB::Black);
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      unsigned int EyeSize = EyeSizePct * ledsPerSection / 100;
-      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize-2)) / 100);
+      unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
+      unsigned int pos = sectionStart[z][s] + (((dir?100-pct:pct) * (ledsPerSection-2*(EyeSize+2))) / 100);
       leds[z][pos] = leds[z][pos+EyeSize+1] = c/8;
       for ( int j=1; j<=EyeSize; j++ ) {
         leds[z][pos+j] = c; 
@@ -124,17 +133,7 @@ void CylonBounce(int EyeSizePct, int SpeedDelay) {
     }
   }
   showStrip();
-  FastLED.delay(SpeedDelay);
-
-  if ( dir ) {
-    pct--;
-  } else {
-    pct++;
-  }
-
-  if ( pct == 100 || pct == 0) {
-    dir = !dir;
-  }
+  FastLED.delay(10);
 }
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
@@ -426,44 +425,35 @@ void runningLights(int WaveDelay) {
 }
 
 //------------------------------------------------------//
-void colorWipe(int SpeedDelay, boolean Reverse) {
+void colorWipe(int WipesPerMinute, boolean Reverse) {
   static unsigned int pct = 0;  // starting position
   static boolean blank = false;
   CRGB c = CHSV(gHue, 255, 255);
+
+  uint8_t beat = beat8(WipesPerMinute*2)*100/255; // double the speed (colored & black wipes)
+  if ( pct == beat ) {  // if there is no change in position just exit
+    FastLED.delay(10);
+    return;
+  } else if ( pct > beat ) {  // roll-over, erase the section
+    blank = !blank;
+    if ( blank )
+      gHue += 8;
+  }
+  pct = beat; // percent fill
   
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      unsigned int pos = sectionStart[z][s] + ((pct * ledsPerSection) / 100);
-      if ( pct > 0 && ledsPerSection > 100 ) {
-        for ( int i=sectionStart[z][s] + (((pct-1) * ledsPerSection) / 100); i<pos; i++ ) {
-          leds[z][pos] = blank ? CRGB::Black : c;
-        }
+      unsigned int nLeds = (pct * ledsPerSection) / 100;
+      if ( Reverse ) {
+        fill_solid(&leds[z][sectionEnd[z][s]-nLeds-1], nLeds, blank ? CRGB::Black : c);
       } else {
-        if ( pos < sectionEnd[z][s] )
-          leds[z][pos] = blank ? CRGB::Black : c;
+        fill_solid(&leds[z][sectionStart[z][s]], nLeds, blank ? CRGB::Black : c);
       }
     }
   }
-  
   showStrip();
-  FastLED.delay(SpeedDelay);
-
-  if ( Reverse ) {
-    if ( pct-- == 0 ) {
-      pct = 100;
-      blank = !blank;
-      if ( blank )
-        gHue += 8;
-    }
-  } else {
-    if ( pct++ == 100 ) {
-      pct = 0;
-      blank = !blank;
-      if ( blank )
-        gHue += 8;
-    }
-  }
+  FastLED.delay(10);
 }
 
 //------------------------------------------------------//
@@ -554,32 +544,31 @@ void rainbowCycle(int SpeedDelay) {
 }
 
 //------------------------------------------------------//
-void rainbowBounce(int EyeSizePct, int SpeedDelay) {
+void rainbowBounce(int EyeSizePct, int SweepsPerMinute) {
   static boolean dir = false;   // start left-to-right
   static unsigned int pct = 0;  // starting position
   
+  uint8_t beat = beat8(SweepsPerMinute)*100/255;
+  if ( pct == beat ) {  // if there is no change in position just exit
+    FastLED.delay(10);
+    return;
+  } else if ( pct > beat ) {  // roll-over, erase the section
+    dir = !dir;
+  }
+  pct = beat; // percent fill
+
   for ( int z=0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], CRGB::Black);
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
-      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
+      unsigned int pos = sectionStart[z][s] + (((dir?100-pct:pct) * (ledsPerSection-2*EyeSize)) / 100);
       fill_rainbow(&leds[z][pos], EyeSize, 0, max(1,(int)(255/EyeSize)));
     }
   }
   
   showStrip();
-  FastLED.delay(SpeedDelay);
-
-  if ( dir ) {
-    pct--;
-  } else {
-    pct++;
-  }
-
-  if ( pct == 100 || pct == 0) {
-    dir = !dir;
-  }
+  FastLED.delay(10);
 }
 
 //------------------------------------------------------//

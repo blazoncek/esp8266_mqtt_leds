@@ -556,7 +556,7 @@ void loop() {
               break;
               
     case CYLONBOUNCE :
-              CylonBounce(8, 5); // 100% / 500 ms
+              CylonBounce(8, 60); // 8% , 60/min
               break;
               
     case NEWKITT :
@@ -584,7 +584,7 @@ void loop() {
               break;
               
     case COLORWIPE :
-              colorWipe(5);
+              colorWipe(30);  // 30/min
               break;
 
     case RAINBOWCYCLE :
@@ -625,7 +625,7 @@ void loop() {
               break;
 
     case SINELON :
-              sinelon(10);
+              sinelon(5);
               break;
 
     case BPM :
@@ -633,7 +633,7 @@ void loop() {
               break;
 
     case JUGGLE :
-              juggle(10);
+              juggle(5);
               break;
 
     case COLORCHASE :
@@ -649,7 +649,7 @@ void loop() {
               break;
 
     case RAINBOWBOUNCE :
-              rainbowBounce(20, 5);
+              rainbowBounce(20, 30);
               break;
               
   }
