@@ -437,7 +437,7 @@ void setup() {
       Serial.println(F("Adding WS2801 strip (on GPIO12, GPIO14)."));
       #endif
       FastLED.addLeds<WS2801, 12, 14, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-    } else if ( strcmp_P(zoneLEDType[i], _WS2811)==0 ) {
+    } else if ( strcmp_P(zoneLEDType[i], _WS2811)==0 && i<2 ) {
       // only allow WS2811 strip on zone 0 and 1 (due to memory constrains)
       #if DEBUG
       Serial.println(F("Adding WS2811 strip."));
@@ -447,10 +447,10 @@ void setup() {
           FastLED.addLeds<WS2811, 0/*D3*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 1:
-          FastLED.addLeds<WS2811, 4/*D2*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2811, 2/*D4*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
 //        case 2:
-//          FastLED.addLeds<WS2811, 2/*D4*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+//          FastLED.addLeds<WS2811, 4/*D2*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
 //          break;
 //        case 3:
 //          FastLED.addLeds<WS2811, 5/*D1*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
@@ -468,10 +468,10 @@ void setup() {
           FastLED.addLeds<WS2812, 0/*D3*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 1:
-          FastLED.addLeds<WS2812, 4/*D2*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 2/*D4*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 2:
-          FastLED.addLeds<WS2812, 2/*D4*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 4/*D2*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 3:
           FastLED.addLeds<WS2812, 5/*D1*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);

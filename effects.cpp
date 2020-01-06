@@ -117,14 +117,12 @@ void CylonBounce(int EyeSizePct, int SpeedDelay) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int EyeSize = EyeSizePct * ledsPerSection / 100;
       unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize-2)) / 100);
-      leds[z][pos] = c/8;
+      leds[z][pos] = leds[z][pos+EyeSize+1] = c/8;
       for ( int j=1; j<=EyeSize; j++ ) {
         leds[z][pos+j] = c; 
       }
-      leds[z][pos+EyeSize+1] = c/8;
     }
   }
-  
   showStrip();
   FastLED.delay(SpeedDelay);
 
@@ -713,7 +711,7 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
       // fade brightness all LEDs one step
       for ( int j=0; j<ledsPerSection; j++ ) {
         if ( (!meteorRandomDecay) || (random8(10)>5) ) {
-          fadeToBlack(z, sectionStart[z][s]+j, meteorTrailDecay);
+          leds[z][sectionStart[z][s]+j].fadeToBlackBy(meteorTrailDecay);
         }
       }
 
@@ -737,26 +735,52 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
 // ** Common Functions **
 // ***************************************
 
-// Set a LED color
-void setPixel(int zone, int pixel, CRGB c) {
-   leds[zone][pixel] = c;
-}
-
-// Set all LEDs to a given color
-void setAll(int zone, int section, CRGB c) {
-  for ( int p=sectionStart[zone][section]; p<sectionEnd[zone][section]; p++ ) {
-    leds[zone][p] = c; 
-  }
-}
-
-// used by meteorrain
-void fadeToBlack(int zone, int ledNo, byte fadeValue) {
-   // FastLED
-   leds[zone][ledNo].fadeToBlackBy( fadeValue );  // 64=25%
-}
-
 void addGlitter(int zone, int section, fract8 chanceOfGlitter) {
   if ( random8() < chanceOfGlitter ) {
-    leds[zone][ random16(sectionStart[zone][section],sectionEnd[zone][section]) ] += CRGB::White;
+    leds[zone][ random16(sectionStart[zone][section],sectionEnd[zone][section]) ] += CRGB::White; // 100% white
   }
+}
+
+// Color wheel (get RGB from hue)
+CRGB * getRGBfromHue(byte hue) {
+  static CRGB c;
+  
+  if ( hue < 85 ) {
+   c.r = hue * 3;
+   c.g = 255 - hue * 3;
+   c.b = 0;
+  } else if ( hue < 170 ) {
+   hue -= 85;
+   c.r = 255 - hue * 3;
+   c.g = 0;
+   c.b = hue * 3;
+  } else {
+   hue -= 170;
+   c.r = 0;
+   c.g = hue * 3;
+   c.b = 255 - hue * 3;
+  }
+
+  return &c;
+}
+
+CRGB * getRGBfromHeat(byte temp) {
+  static CRGB c;
+
+  // Scale 'heat' down from 0-255 to 0-191
+  byte t192 = (byte)(((int)temp*191)/255);
+ 
+  // calculate ramp up from
+  byte heatramp = t192 & 0x3F; // 0..63
+  heatramp <<= 2; // scale up to 0..252
+ 
+  // figure out which third of the spectrum we're in:
+  if( t192 > 0x80) {                     // hottest
+    c = CRGB(255, 255, heatramp);
+  } else if( t192 > 0x40 ) {             // middle
+    c = CRGB(255, heatramp, 0);
+  } else {                               // coolest
+    c = CRGB(heatramp, 0, 0);
+  }
+  return &c;
 }
