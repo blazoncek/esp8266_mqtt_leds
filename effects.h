@@ -78,10 +78,9 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]);
 void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
 
 // Common Functions
-void setPixel(int zone, int Pixel, CRGB c);
-void setAll(int zone, int section, CRGB c);
-void fadeToBlack(int zone, int ledNo, byte fadeValue);
 void addGlitter(int zone, int section, fract8 chanceOfGlitter);
 
 // private functions
 void setPixelHeatColor(int zone, int Pixel, byte temperature);
+CRGB * getRGBfromHue(byte hue);
+CRGB * getRGBfromHeat(byte temp);

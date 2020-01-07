@@ -218,7 +218,7 @@ void OutsideToCenter(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   }
 }
 
-// used by NewKITT & Cylon Bounce
+// used by NewKITT
 void LeftToRight(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   static unsigned int pct = 0;  // starting position
   unsigned int EyeSize;
@@ -250,7 +250,7 @@ void LeftToRight(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   }
 }
 
-// used by NewKITT & Cylon Bounce
+// used by NewKITT
 void RightToLeft(CRGB c, int EyeSizePct, int SpeedDelay, boolean Fade) {
   static unsigned int pct = 100;  // starting position
   unsigned int EyeSize;
@@ -316,7 +316,7 @@ void sinelon(int SpeedDelay) {
   for ( int z=0; z<numZones; z++ ) {
     fadeToBlackBy(leds[z], numLEDs[z], 16);
     for ( int s=0; s<numSections[z]; s++ ) {
-      int pos = beatsin16(13, sectionStart[z][s], sectionEnd[z][s]-1);
+      int pos = beatsin16(20, sectionStart[z][s], sectionEnd[z][s]-1);
       leds[z][pos] = CHSV(gHue, 255, 255);
     }
   }
@@ -357,7 +357,7 @@ void juggle(int SpeedDelay) {
     for ( int s=0; s<numSections[z]; s++ ) {
       byte dothue = 0;
       for ( int i=0; i<8; i++ ) {
-        leds[z][beatsin16(i+7, sectionStart[z][s], sectionEnd[z][s]-1)] |= CHSV(dothue, 200, 255);
+        leds[z][beatsin16(i+7, sectionStart[z][s], sectionEnd[z][s]-1)] |= CHSV(dothue, 255, 255);
         dothue += 32;
       }
     }
