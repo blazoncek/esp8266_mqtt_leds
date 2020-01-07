@@ -14,10 +14,10 @@ Also supports Domoticz RGBW Switch type natively.
 - Supports native [Domoticz](https://www.domoticz.com) control (virtual selector switch) via MQTT
 
 ### Instructions
-- Use GPIO14 (clock) and GPIO12 (data) `for zone 0, SPI based chip`
-- Use GPIO 0,4,2,5,15,13 pins for non-SPI based chips (3-wire pixels WS2812)
+- Use GPIO14 (clock) and GPIO12 (data) `only for zone 0 & SPI based chip`
+- Use GPIO 0,4,2,5,15,13 pins for non-SPI based chips (3-wire pixels WS2812/WS2811)
 - Use only zones 0 and 1 for WS2811 pixels
-- Use 512k or greater SPIFFS if possible (for OTA updates)
+- Use 64k SPIFFS on ESP01 if possible (for OTA updates via Arduino IDE)
 - Configure via embedded web server
 - Configure via MQTT message:
   - LEDstrip/led-xxxxxx/set/zones [{JSON}] `zone 0 configuration in JSON format`
