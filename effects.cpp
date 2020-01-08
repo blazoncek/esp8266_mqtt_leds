@@ -125,7 +125,7 @@ void CylonBounce(int EyeSizePct, int SweepsPerMinute) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
-      unsigned int pos = sectionStart[z][s] + (((dir?100-pct:pct) * (ledsPerSection-2*(EyeSize+2))) / 100);
+      unsigned int pos = sectionStart[z][s] + (((dir?100-pct:pct) * (ledsPerSection-(EyeSize+2))) / 100);
       leds[z][pos] = leds[z][pos+EyeSize+1] = c/8;
       for ( int j=1; j<=EyeSize; j++ ) {
         leds[z][pos+j] = c; 
@@ -295,7 +295,7 @@ void Twinkle(int SpeedDelay, boolean OnlyOne) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       int pos = random16(sectionStart[z][s], sectionEnd[z][s]);
-      leds[z][pos] =CHSV(gHue++, 255, 255);
+      leds[z][pos] = CHSV(gHue++, 255, 255);
     }
   }
   showStrip();
@@ -409,14 +409,12 @@ void runningLights(int WaveDelay) {
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      
       for ( int i=0; i<ledsPerSection; i++ ) {
         unsigned int level = sin8( (i*1280/ledsPerSection + offset) & 0xFF );  // 5 waves
         leds[z][sectionStart[z][s] + i] = CHSV(gHue, 255, level);
       }
     }
   }
-  
   showStrip();
   FastLED.delay(WaveDelay);
 
@@ -428,32 +426,36 @@ void runningLights(int WaveDelay) {
 void colorWipe(int WipesPerMinute, boolean Reverse) {
   static unsigned int pct = 0;  // starting position
   static boolean blank = false;
-  CRGB c = CHSV(gHue, 255, 255);
+  CRGB c;
 
   uint8_t beat = beat8(WipesPerMinute*2)*100/255; // double the speed (colored & black wipes)
   if ( pct == beat ) {  // if there is no change in position just exit
-    FastLED.delay(10);
+    FastLED.delay(5);
     return;
   } else if ( pct > beat ) {  // roll-over, erase the section
     blank = !blank;
-    if ( blank )
-      gHue += 8;
+    if ( blank ) gHue += 8;
   }
   pct = beat; // percent fill
   
+  if ( blank ) {
+    c = CRGB::Black;
+  } else {
+    c = CHSV(gHue, 255, 255);
+  }
   for ( int z=0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int nLeds = (pct * ledsPerSection) / 100;
       if ( Reverse ) {
-        fill_solid(&leds[z][sectionEnd[z][s]-nLeds-1], nLeds, blank ? CRGB::Black : c);
+        fill_solid(&leds[z][sectionEnd[z][s]-nLeds-1], nLeds, c);
       } else {
-        fill_solid(&leds[z][sectionStart[z][s]], nLeds, blank ? CRGB::Black : c);
+        fill_solid(&leds[z][sectionStart[z][s]], nLeds, c);
       }
     }
   }
   showStrip();
-  FastLED.delay(10);
+  FastLED.delay(5);
 }
 
 //------------------------------------------------------//
@@ -562,7 +564,7 @@ void rainbowBounce(int EyeSizePct, int SweepsPerMinute) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
-      unsigned int pos = sectionStart[z][s] + (((dir?100-pct:pct) * (ledsPerSection-2*EyeSize)) / 100);
+      unsigned int pos = sectionStart[z][s] + (((dir?100-pct:pct) * (ledsPerSection-EyeSize)) / 100);
       fill_rainbow(&leds[z][pos], EyeSize, 0, max(1,(int)(255/EyeSize)));
     }
   }
