@@ -428,7 +428,7 @@ void colorWipe(int WipesPerMinute, boolean Reverse) {
   static boolean blank = false;
   CRGB c;
 
-  uint8_t beat = beat8(WipesPerMinute*2)*100/255; // double the speed (colored & black wipes)
+  uint8_t beat = (beat8(WipesPerMinute*2)+1)*100/255; // double the speed (colored & black wipes)
   if ( pct == beat ) {  // if there is no change in position just exit
     FastLED.delay(5);
     return;
