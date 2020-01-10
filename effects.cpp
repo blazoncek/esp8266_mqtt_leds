@@ -317,6 +317,8 @@ void sinelon(int SpeedDelay) {
     fadeToBlackBy(leds[z], numLEDs[z], 16);
     for ( int s=0; s<numSections[z]; s++ ) {
       int pos = beatsin16(20, sectionStart[z][s], sectionEnd[z][s]-1);
+      if ( s%2 )
+        pos = (sectionEnd[z][s]-1-pos) + sectionStart[z][s];
       leds[z][pos] = CHSV(gHue, 255, 255);
     }
   }
@@ -357,7 +359,10 @@ void juggle(int SpeedDelay) {
     for ( int s=0; s<numSections[z]; s++ ) {
       byte dothue = 0;
       for ( int i=0; i<8; i++ ) {
-        leds[z][beatsin16(i+7, sectionStart[z][s], sectionEnd[z][s]-1)] |= CHSV(dothue, 255, 255);
+        int pos = beatsin16(i+7, sectionStart[z][s], sectionEnd[z][s]-1);
+        if ( s%2 )
+          pos = (sectionEnd[z][s]-1-pos) + sectionStart[z][s];
+        leds[z][pos] |= CHSV(dothue, 255, 255);
         dothue += 32;
       }
     }

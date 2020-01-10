@@ -40,8 +40,8 @@
 // WS2812 pixels can use zones 0 to zone 5.
 //
 // WS2801 uses SPI pins on ESP (even though FastLED lacks HW support), GPIO12 (MISO) & GPIO14 (SCLK)
-// WS2811 uses pins GPIO0 (zone 0) and GPIO4 (zone 2)
-// WS2812 uses PINS GPIO0, 4, 2, 5, 15, 13 
+// WS2811 uses pins GPIO2 (zone 0) and GPIO0 (zone 1)
+// WS2812 uses PINS GPIO2, 0, 4, 5, 15, 13 
 
 // NOTE: Be aware, that driving # of LEDs takes time. Due to ESP8266 serial nature (use ESP32 if you want paralell
 // execution) only about 400-450 LED pixels can be driven with 30 FPS.
@@ -444,10 +444,10 @@ void setup() {
       #endif
       switch (i) {
         case 0:
-          FastLED.addLeds<WS2811, 0/*D3*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2811, 2/*D4*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 1:
-          FastLED.addLeds<WS2811, 2/*D4*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2811, 0/*D3*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
 //        case 2:
 //          FastLED.addLeds<WS2811, 4/*D2*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
@@ -465,10 +465,10 @@ void setup() {
       #endif
       switch (i) {
         case 0:
-          FastLED.addLeds<WS2812, 0/*D3*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 2/*D4*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 1:
-          FastLED.addLeds<WS2812, 2/*D4*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          FastLED.addLeds<WS2812, 0/*D3*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
         case 2:
           FastLED.addLeds<WS2812, 4/*D2*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
@@ -659,7 +659,7 @@ void loop() {
 
 // Apply LED color changes & allow other tasks (MQTT callback, ...)
 void showStrip() {
-//  yield();    // allow other tasks
+  yield();    // allow other tasks
   if ( client.connected() )
     client.loop(); //check MQTT
   
