@@ -560,23 +560,24 @@ void loop() {
               break;
               
     case NEWKITT :
-              NewKITT(10, 5);
+              NewKITT(5, 45);
               break;
               
     case TWINKLE :
-              Twinkle(50, false);
+              Twinkle(25, false);
+              gHue++;
               break;
               
     case TWINKLERANDOM :
-              TwinkleRandom(50, false);
+              TwinkleRandom(25, false);
               break;
               
     case SPARKLE :
-              Sparkle(50);
+              Sparkle(25);
               break;
                
     case SNOWSPARKLE :
-              snowSparkle(50, random(50,200));
+              snowSparkle(25);
               break;
               
     case RUNNINGLIGHTS :
@@ -602,7 +603,7 @@ void loop() {
 
     case FIRE :
               // Fire - Cooling rate, Sparking rate, speed delay (1000/FPS)
-              Fire(55, 120, 30);
+              Fire(50, 128, 15);
               break;
 
     case BOUNCINGBALL :
@@ -625,15 +626,15 @@ void loop() {
               break;
 
     case SINELON :
-              sinelon(5);
+              sinelon(15);
               break;
 
     case BPM :
-              bpm(10);
+              bpm(15);
               break;
 
     case JUGGLE :
-              juggle(5);
+              juggle(15);
               break;
 
     case COLORCHASE :
