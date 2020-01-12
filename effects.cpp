@@ -407,13 +407,15 @@ void colorWipe(int WipesPerMinute, boolean Reverse) {
   static boolean blank = false;
   CRGB c;
 
-  uint8_t beat = (beat8(WipesPerMinute*2)+1)*100/255; // double the speed (colored & black wipes)
+  uint8_t beat = (beat8(WipesPerMinute*2)+2)*100/255; // double the speed (colored & black wipes)
   if ( pct == beat ) {  // if there is no change in position just exit
     FastLED.delay(5);
     return;
-  } else if ( pct > beat ) {  // roll-over, erase the section
+  } else if ( pct > beat && pct > 99 ) {  // roll-over, erase the section
     blank = !blank;
     if ( blank ) gHue += 8;
+  } else if ( pct > beat && pct < 100 ) {
+    beat = 100;
   }
   pct = beat; // percent fill
   
@@ -434,7 +436,7 @@ void colorWipe(int WipesPerMinute, boolean Reverse) {
     }
   }
   showStrip();
-  FastLED.delay(15);
+  FastLED.delay(5);
 }
 
 //------------------------------------------------------//
