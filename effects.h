@@ -1,6 +1,7 @@
 /*
  * effects.h  - master include for LED effects
  */
+#include "FastLED.h"
  
 // This is an array of leds.  One item for each led in your strip.
 extern CRGB *leds[], gRGB;
@@ -42,6 +43,14 @@ enum EFFECTS {
   LAST_EFFECT = RAINBOWBOUNCE
 };
 typedef EFFECTS effects_t;
+
+typedef struct EFFCT_NAME {
+  effects_t id;
+  char name[20];
+} effect_name_t;
+
+extern effect_name_t effects[];
+extern const char *effect_names[];
 
 // Fire effect static data (byte[numLEDs]) allocated at init
 extern byte *heat[];

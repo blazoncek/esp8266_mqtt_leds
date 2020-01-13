@@ -1,5 +1,7 @@
 // global includes (libraries)
 
+#include <pgmspace.h>
+
 #include <ESP8266WiFi.h>          // Base ESP8266 includes
 #include <ESP8266mDNS.h>          // multicast DNS
 #include <WiFiUdp.h>              // UDP handling
@@ -9,68 +11,110 @@
 
 #include "eepromdata.h"
 #include "webpages.h"
+#include "effects.h"
 
 extern char c_idx[];
+extern char zoneLEDType[][7];
+
+extern effects_t selectedEffect;
+
+const char HTML_HEAD[] PROGMEM = "<html>\n<head>\n<title>Configure LED strips</title>\n<style>body {background-color:#cccccc;font-family:Arial,Helvetica,Sans-Serif;Color:#000088;}</style>\n</head>\n<body>\n";
+const char HTML_FOOT[] PROGMEM = "</body>\n</html>";
+
+const char _WS2801[] PROGMEM = "WS2801";
+const char _WS2811[] PROGMEM = "WS2811";
+const char _WS2812[] PROGMEM = "WS2812";
+const char _SELECTED[] PROGMEM = " selected";
+const char _LED_OPTION[] PROGMEM = "<option value=\"%S\"%S>%S</option>\n";
+const char _EFFECT_OPTION[] PROGMEM = "<option value=\"%d\" %S>%s</option>\n";
 
 void handleRoot() {
-  String sections, postForm = "<html>\n\<head>\n\
-<title>Configure LED strips</title>\n\
-<style>body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }</style>\n\
-</head>\n\
-<body>\n\
-<form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/set/\">\n\
-<table>\n\
-<tr><td>Domoticz IDX:</td><td><input type=\"text\" name=\"idx\" value=\"" + String(atoi(c_idx)) + "\"></td></tr>\n";
-    
-  for ( int i=0; i<MAXZONES; i++ ) {
-    sections = "0";
-    for ( int j=1; j<numSections[i]; j++ ) {
-      sections += "," + String(sectionStart[i][j]);
+  String sections, postForm = FPSTR(HTML_HEAD);
+  
+  postForm += F("<form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/\">\n<table>\n");
+  if (server.method() == HTTP_POST) {
+    if ( server.args() == 0 ) {
+      postForm += F("<tr><td colspan=\"2\">BAD ARGUMENT</td></tr>\n");
     }
-    postForm += "<tr><td colspan=\"2\" align=\"center\">Zone " + String(i) + ":</td></tr>\n";
-    postForm += "<tr><td># of LEDs:</td><td><input type=\"text\" name=\"leds" + String(i) + "\" value=\""+ String(numLEDs[i]) +"\"></td></tr>\n";
-    if ( i == 0 ) {
-      postForm += "<tr><td>LED type (WS28xx):</td><td><select name=\"ledtype"+ String(i) +"\" size=\"1\">\n";
-      postForm += "<option value=\"WS2812\"" + (strncmp_P(zoneLEDType[i], PSTR("WS2812"), 6)==0 ? String(" selected") : String("")) + ">WS2812</option>\n";
-      postForm += "<option value=\"WS2811\"" + (strncmp_P(zoneLEDType[i], PSTR("WS2811"), 6)==0 ? String(" selected") : String("")) + ">WS2811</option>\n";
-      postForm += "<option value=\"WS2801\"" + (strncmp_P(zoneLEDType[i], PSTR("WS2801"), 6)==0 ? String(" selected") : String("")) + ">WS2801</option>\n";
-      postForm += "</select></td></tr>\n";
-    } else if ( i == 1 ) {
-      postForm += "<tr><td>LED type (WS28xx):</td><td><select name=\"ledtype"+ String(i) +"\" size=\"1\">\n";
-      postForm += "<option value=\"WS2812\"" + (strncmp_P(zoneLEDType[i], PSTR("WS2812"), 6)==0 ? String(" selected") : String("")) + ">WS2812</option>\n";
-      postForm += "<option value=\"WS2811\"" + (strncmp_P(zoneLEDType[i], PSTR("WS2811"), 6)==0 ? String(" selected") : String("")) + ">WS2811</option>\n";
-      postForm += "</select></td></tr>\n";
-    } else {
-      postForm += "<tr><td>LED type:</td><td><input type=\"text\" name=\"ledtype" + String(i) + "\" value=\"WS2812\" readonly></td></tr>\n";
-    }
-    postForm += "<tr><td>LED sections:</td><td><input type=\"text\" name=\"sections" + String(i) + "\" value=\""+ sections +"\"></td></tr>\n";
+    selectedEffect = (effects_t) server.arg("effect").toInt();
   }
-
-  postForm += "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" value=\"Submit\"></td></tr>\n</table>\n</form>\n</body>\n</html>";
-    
+  
+  postForm += F("<tr><td>Effect:</td><td><select name=\"effect\" size=\"1\">\n");
+  
+  for ( int i=0; i<=LAST_EFFECT; i++ ) {
+    char buffer[64];
+    snprintf_P(buffer, 64, _EFFECT_OPTION, i, (i==selectedEffect ? _SELECTED : PSTR("")), effect_names[i]);
+    postForm += buffer;
+  }
+  postForm += F("</select></td></tr>\n");
+  postForm += F("<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" value=\"Submit\"></td></tr>\n</table>\n</form>\n");
+  postForm += F("<a href=\"/set/\">Configure</a><br>\n");
+  postForm += FPSTR(HTML_FOOT);
   server.send(200, "text/html", postForm);
 }
 
-void handleNotFound() {
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-
-  server.send(404, "text/plain", message);
-}
-
 void handleSet() {
+  char buffer[64];
+  
   if (server.method() != HTTP_POST) {
-    server.send(405, "text/plain", "Method Not Allowed");
+
+    String sections, postForm = FPSTR(HTML_HEAD);
+    postForm += F("<body>\n"
+        "<form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/set/\">\n"
+        "<table>\n"
+        "<tr><td>Domoticz IDX:</td><td><input type=\"text\" name=\"idx\" value=\"");
+    postForm += String(atoi(c_idx));
+    postForm += F("\"></td></tr>\n");
+      
+    for ( int i=0; i<MAXZONES; i++ ) {
+      sections = "0";
+      for ( int j=1; j<numSections[i]; j++ ) {
+        sections += "," + String(sectionStart[i][j]);
+      }
+      postForm += F("<tr><td colspan=\"2\" align=\"center\">Zone ");
+      postForm += String(i);
+      postForm += F(":</td></tr>\n");
+      postForm += F("<tr><td># of LEDs:</td><td><input type=\"text\" name=\"leds");
+      postForm += String(i);
+      postForm += F("\" value=\"");
+      postForm += String(numLEDs[i]);
+      postForm += F("\"></td></tr>\n");
+      if ( i == 0 ) {
+        postForm += F("<tr><td>LED type (WS28xx):</td><td><select name=\"ledtype");
+        postForm += String(i);
+        postForm += F("\" size=\"1\">\n");
+        snprintf_P(buffer, 64, _LED_OPTION, _WS2812, (strncmp_P(zoneLEDType[i], _WS2812, 6)==0 ? _SELECTED : PSTR("")), _WS2812);
+        postForm += buffer;
+        snprintf_P(buffer, 64, _LED_OPTION, _WS2811, (strncmp_P(zoneLEDType[i], _WS2811, 6)==0 ? _SELECTED : PSTR("")), _WS2811);
+        postForm += buffer;
+        snprintf_P(buffer, 64, _LED_OPTION, _WS2801, (strncmp_P(zoneLEDType[i], _WS2801, 6)==0 ? _SELECTED : PSTR("")), _WS2801);
+        postForm += buffer;
+        postForm += F("</select></td></tr>\n");
+      } else if ( i == 1 ) {
+        postForm += F("<tr><td>LED type (WS28xx):</td><td><select name=\"ledtype");
+        postForm += String(i);
+        postForm += F("\" size=\"1\">\n");
+        snprintf_P(buffer, 64, _LED_OPTION, _WS2812, (strncmp_P(zoneLEDType[i], _WS2812, 6)==0 ? _SELECTED : PSTR("")), _WS2812);
+        postForm += buffer;
+        snprintf_P(buffer, 64, _LED_OPTION, _WS2811, (strncmp_P(zoneLEDType[i], _WS2811, 6)==0 ? _SELECTED : PSTR("")), _WS2811);
+        postForm += buffer;
+        postForm += F("</select></td></tr>\n");
+      } else {
+        postForm += F("<tr><td>LED type:</td><td><input type=\"text\" name=\"ledtype");
+        postForm += String(i);
+        postForm += F("\" value=\"WS2812\" readonly></td></tr>\n");
+      }
+      postForm += F("<tr><td>LED sections:</td><td><input type=\"text\" name=\"sections");
+      postForm += String(i);
+      postForm += F("\" value=\"");
+      postForm += sections;
+      postForm += F("\"></td></tr>\n");
+    }
+  
+    postForm += F("<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" value=\"Submit\"></td></tr>\n</table>\n</form>\n</body>\n");
+    postForm += FPSTR(HTML_FOOT);
+    server.send(200, "text/html", postForm);
+
   } else {
     if (server.args() == 0) {
       return server.send(500, "text/plain", "BAD ARGS");
@@ -81,13 +125,8 @@ void handleSet() {
     memset(&e, 0, sizeof(e));
     memcpy_P(e.esp, PSTR("esp"), 3);
   
-    String message = "<html>\n\
-  <head>\n\
-    <meta http-equiv='refresh' content='15; url=/' />\n\
-    <title>ESP8266 settings applied</title>\n\
-  </head>\n\
-  <body>\n\
-    Settings applied.<br>\n";
+    String message = F("<html>\n<head>\n<meta http-equiv='refresh' content='15; url=/' />\n<title>ESP8266 settings applied</title>\n</head>\n");
+    message += F("<body>\nSettings applied.<br>\n");
 
     for ( uint8_t i = 0; i < server.args(); i++ ) {
       String argN = server.argName(i);
@@ -147,8 +186,8 @@ void handleSet() {
         #endif
       }
     }
-    message += "<br>ESP is restarting, please wait.<br>\n";
-    message += "</body>\n</html>";
+    message += F("<br>ESP is restarting, please wait.<br>\n");
+    message += F("</body>\n</html>");
     server.send(200, "text/html", message);
 
     for ( zones=1; zones<MAXZONES; zones++ ) {
@@ -185,4 +224,21 @@ void handleSet() {
     delay(2000);
 
   }
+}
+
+void handleNotFound() {
+  String message = "File Not Found\n\n";
+  message += "URI: ";
+  message += server.uri();
+  message += "\nMethod: ";
+  message += (server.method() == HTTP_GET) ? "GET" : "POST";
+  message += "\nArguments: ";
+  message += server.args();
+  message += "\n";
+
+  for (uint8_t i = 0; i < server.args(); i++) {
+    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+  }
+
+  server.send(404, "text/plain", message);
 }

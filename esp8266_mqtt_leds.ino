@@ -110,16 +110,16 @@ char *ftoa(float,char*,int d=2);
 void saveConfigCallback();
 
 // strings (to reduce IRAM pressure)
-static const char _USERNAME[] = "username";
-static const char _PASSWORD[] = "password";
-static const char _MQTTSVR[]  = "mqtt_server";
-static const char _MQTTPRT[]  = "mqtt_port";
-static const char _CONFIG[] PROGMEM = "/config.json";
-static const char _WS2801[] PROGMEM = "WS2801";
-static const char _WS2811[] PROGMEM = "WS2811";
-static const char _WS2812[] PROGMEM = "WS2812";
+const char _USERNAME[] = "username";
+const char _PASSWORD[] = "password";
+const char _MQTTSVR[]  = "mqtt_server";
+const char _MQTTPRT[]  = "mqtt_port";
+const char _CONFIG[] PROGMEM = "/config.json";
+const char _WS2801[] PROGMEM = "WS2801";
+const char _WS2811[] PROGMEM = "WS2811";
+const char _WS2812[] PROGMEM = "WS2812";
 /*
-static const char [] PROGMEM = "";
+const char [] PROGMEM = "";
 */
 
 //-----------------------------------------------------------

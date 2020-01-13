@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #define DEBUG 1
 
 #define MAXZONES 6              // could go up to 8, if not using WS2801 pixels

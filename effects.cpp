@@ -1,5 +1,3 @@
-#include "FastLED.h"
-
 #include "eepromdata.h"
 #include "effects.h"
 
@@ -19,6 +17,66 @@ NewKITTPatternList gPatterns = {
   };
 uint8_t gCurrentPattern = 0;
 uint8_t gBeat = 0;
+
+
+effect_name_t effects[] = {
+  {OFF,                  "Off"},
+  {SOLID,                "Solid Color"},
+  {FADEINOUT,            "Fade In&Out"},
+  {STROBE,               "Strobe"},
+  {HALLOWEENEYES,        "Haloween Eyes"},
+  {CYLONBOUNCE,          "Cylon Bounce"},
+  {NEWKITT,              "New KITT"},
+  {TWINKLE,              "Twinkle"},
+  {TWINKLERANDOM,        "Twinkle random"},
+  {SPARKLE,              "Sparkle"},
+  {SNOWSPARKLE,          "Snow Sparkle"},
+  {RUNNINGLIGHTS,        "Running lights"},
+  {COLORWIPE,            "Color Wipe"},
+  {RAINBOWCYCLE,         "Rainbow Cycle"},
+  {THEATRECHASE,         "Theatre Chase"},
+  {RAINBOWCHASE,         "Rainbow Chase"},
+  {FIRE,                 "Fire"},
+  {BOUNCINGBALL,         "Bouncing ball"},
+  {BOUNCINGCOLOREDBALLS, "3 bouncing balls"},
+  {METEORRAIN,           "Meteor"},
+  {SINELON,              "SineLon"},
+  {BPM,                  "Pusling Colors"},
+  {JUGGLE,               "8 juggling dots"},
+  {COLORCHASE,           "Color Chase"},
+  {CHRISTMASCHASE,       "Christmass Chase"},
+  {RAINBOWBOUNCE,        "Rainbow Bounce"}
+};
+
+
+char const *effect_names[] = {
+  "Off",
+  "Solid Color",
+  "Fade In&Out",
+  "Strobe",
+  "Haloween Eyes",
+  "Cylon Bounce",
+  "New KITT",
+  "Twinkle",
+  "Twinkle random",
+  "Sparkle",
+  "Snow Sparkle",
+  "Running lights",
+  "Color Wipe",
+  "Rainbow Cycle",
+  "Theatre Chase",
+  "Rainbow Chase",
+  "Fire",
+  "Bouncing ball",
+  "3 bouncing balls",
+  "Meteor",
+  "SineLon",
+  "Pusling Colors",
+  "8 juggling dots",
+  "Color Chase",
+  "Christmass Chase",
+  "Rainbow Bounce"
+};
 
 // *************************
 // ** LEDEffect Functions **
