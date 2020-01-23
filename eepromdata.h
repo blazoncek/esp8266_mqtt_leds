@@ -5,12 +5,12 @@
 #define MAXZONES 6              // could go up to 8, if not using WS2801 pixels
 #define MAXSECTIONS 9           // don't go wild; 9 sections per zone/LED strip is enough
 
-extern uint8_t numZones;        // number of zones (LED strips), each zone requires a GPIO pin (or two)
+extern uint8_t  numZones;       // number of zones (LED strips), each zone requires a GPIO pin (or two)
 extern uint16_t numLEDs[];      // number of pixels in each zone
-extern uint8_t numSections[];   // number of sections in each zone
+extern uint8_t  numSections[];  // number of sections in each zone
 extern uint16_t sectionStart[][MAXSECTIONS];  // start pixel of each section in each zone
 extern uint16_t sectionEnd[][MAXSECTIONS];    // last pixel of each section in each zone
-extern char zoneLEDType[][7];    // LED type for each zone (WS2801, WS2811, WS2812, ...)
+extern char     zoneLEDType[][7];             // LED type for each zone (WS2801, WS2811, WS2812, ...)
 
 // EEPROM layout:
 // [0-2]   esp ................ verification string

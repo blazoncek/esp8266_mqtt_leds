@@ -25,8 +25,8 @@ const char _WS2801[] PROGMEM = "WS2801";
 const char _WS2811[] PROGMEM = "WS2811";
 const char _WS2812[] PROGMEM = "WS2812";
 const char _SELECTED[] PROGMEM = " selected";
-const char _LED_OPTION[] PROGMEM = "<option value=\"%S\"%S>%S</option>\n";
-const char _EFFECT_OPTION[] PROGMEM = "<option value=\"%d\" %S>%s</option>\n";
+const char _LED_OPTION[] PROGMEM = "<option value=\"%S\"%S>%S</option>\n";      // %S for PROGMEM strings, %s for regular
+const char _EFFECT_OPTION[] PROGMEM = "<option value=\"%d\"%S>%s</option>\n";   // %S for PROGMEM strings, %s for regular
 
 void handleRoot() {
   String sections, postForm = FPSTR(HTML_HEAD);
