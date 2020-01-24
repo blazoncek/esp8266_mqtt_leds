@@ -1,5 +1,6 @@
 // global includes (libraries)
 
+#include <stdint.h>
 #include <pgmspace.h>
 
 #include <ESP8266WiFi.h>          // Base ESP8266 includes
@@ -8,25 +9,29 @@
 #include <DNSServer.h>            // Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
 #include <EEPROM.h>
+#include <FastLED.h>
+
 
 #include "eepromdata.h"
 #include "webpages.h"
 #include "effects.h"
+#include "boblight.h"
+
 
 extern char c_idx[];
 extern char zoneLEDType[][7];
+extern uint16_t numLEDs[];
 
 extern effects_t selectedEffect;
 
-const char HTML_HEAD[] PROGMEM = "<html>\n<head>\n<title>Configure LED strips</title>\n<style>body {background-color:#cccccc;font-family:Arial,Helvetica,Sans-Serif;Color:#000088;}</style>\n</head>\n<body>\n";
-const char HTML_FOOT[] PROGMEM = "</body>\n</html>";
-
-const char _WS2801[] PROGMEM = "WS2801";
-const char _WS2811[] PROGMEM = "WS2811";
-const char _WS2812[] PROGMEM = "WS2812";
-const char _SELECTED[] PROGMEM = " selected";
-const char _LED_OPTION[] PROGMEM = "<option value=\"%S\"%S>%S</option>\n";      // %S for PROGMEM strings, %s for regular
-const char _EFFECT_OPTION[] PROGMEM = "<option value=\"%d\"%S>%s</option>\n";   // %S for PROGMEM strings, %s for regular
+static const char HTML_HEAD[] PROGMEM = "<html>\n<head>\n<title>Configure LED strips</title>\n<style>body {background-color:#cccccc;font-family:Arial,Helvetica,Sans-Serif;Color:#000088;}</style>\n</head>\n<body>\n";
+static const char HTML_FOOT[] PROGMEM = "</body>\n</html>";
+static const char _WS2801[] PROGMEM = "WS2801";
+static const char _WS2811[] PROGMEM = "WS2811";
+static const char _WS2812[] PROGMEM = "WS2812";
+static const char _SELECTED[] PROGMEM = " selected";
+static const char _LED_OPTION[] PROGMEM = "<option value=\"%S\"%S>%S</option>\n";      // %S for PROGMEM strings, %s for regular
+static const char _EFFECT_OPTION[] PROGMEM = "<option value=\"%d\"%S>%s</option>\n";   // %S for PROGMEM strings, %s for regular
 
 void handleRoot() {
   String sections, postForm = FPSTR(HTML_HEAD);
@@ -48,7 +53,8 @@ void handleRoot() {
   }
   postForm += F("</select></td></tr>\n");
   postForm += F("<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" value=\"Submit\"></td></tr>\n</table>\n</form>\n");
-  postForm += F("<a href=\"/set/\">Configure</a><br>\n");
+  postForm += F("<a href=\"/set/\">Configure LED strips</a><br>\n");
+  postForm += F("<a href=\"/bob/\">Configure Boblight</a><br>\n");
   postForm += FPSTR(HTML_FOOT);
   server.send(200, "text/html", postForm);
 }
@@ -225,6 +231,113 @@ void handleSet() {
 
   }
 }
+
+void handleBob() {
+  char buffer[128];
+  if (server.method() != HTTP_POST)
+  {
+
+    int b=0,r=0,t=0,l=0;
+    float pct=0.0;
+    String postForm = F(
+      "<html>\n"
+      "<head>\n"
+        "<title>Configure Boblight</title>\n"
+        "<style>body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }</style>\n"
+      "</head>\n"
+      "<body>\n"
+      "<form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/bob/\">\n"
+      "<table>\n"
+      );
+  
+    for ( int i=0; i<numLights; i++ )
+    {
+      switch ( lights[i].lightname[0] )
+      {
+        case 'b' : b++; if (!pct) pct = lights[i].vscan[1] - lights[i].vscan[0]; break;
+        case 'l' : l++; if (!pct) pct = lights[i].hscan[1] - lights[i].hscan[0]; break;
+        case 't' : t++; if (!pct) pct = lights[i].vscan[1] - lights[i].vscan[0]; break;
+        case 'r' : r++; if (!pct) pct = lights[i].hscan[1] - lights[i].hscan[0]; break;
+      }
+    }
+    snprintf_P(buffer, 127, PSTR("<tr><td>Bottom LEDs:</td><td><input type=\"text\" name=\"bottom\" value=\"%d\"></td></tr>\n"), b);
+    postForm += buffer;
+    snprintf_P(buffer, 127, PSTR("<tr><td>Left LEDs:</td><td><input type=\"text\" name=\"left\" value=\"%d\"></td></tr>\n"), l);
+    postForm += buffer;
+    snprintf_P(buffer, 127, PSTR("<tr><td>Top LEDs:</td><td><input type=\"text\" name=\"top\" value=\"%d\"></td></tr>\n"), t);
+    postForm += buffer;
+    snprintf_P(buffer, 127, PSTR("<tr><td>Right LEDs:</td><td><input type=\"text\" name=\"right\" value=\"%d\"></td></tr>\n"), r);
+    postForm += buffer;
+    snprintf_P(buffer, 127, PSTR("<tr><td>Depth of scan (%%):</td><td><input type=\"text\" name=\"pct\" value=\"%.1f\"></td></tr>\n"), pct);
+    postForm += buffer;
+  
+    postForm += F("<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" value=\"Submit\"></td></tr>\n</table>\n</form>\n</body>\n</html>");
+      
+    server.send(200, "text/html", postForm);
+
+  }
+  else
+  {
+    if (server.args() == 0)
+    {
+      return server.send(500, "text/plain", "BAD ARGS");
+    }
+  
+    String message = F(
+      "<html>\n"
+      "<head>\n"
+        "<meta http-equiv='refresh' content='10; url=/' />\n"
+        "<title>Configure Boblight</title>\n"
+      "</head>\n"
+      "<body>\n"
+      );
+
+    for ( uint8_t i = 0; i < server.args(); i++ )
+    {
+      String argN = server.argName(i);
+      String argV = server.arg(i);
+
+      if ( argN != "plain" )
+      {
+        message += " " + argN + ": " + argV + "<br>\n";
+      }
+      else
+      {
+        continue;
+      }
+    }
+
+    int bottom = server.arg("bottom").toInt();
+    int left   = server.arg("left").toInt();
+    int top    = server.arg("top").toInt();
+    int right  = server.arg("right").toInt();
+    float pct  = server.arg("pct").toFloat();
+
+    if ( bottom+left+top+right > MAX_LEDS || bottom+left+top+right > numLEDs[bobStrip] )
+    {
+      message += F("Too many LEDs specified. Try lower values.<br>\n");
+      message += F("</body>\n</html>");
+      server.send(200, "text/html", message);
+    }
+    else
+    {
+      message += F("Settings applied.<br>\n");
+      //message += F("<br>ESP is restarting, please wait.<br>\n");
+      message += F("</body>\n</html>");
+      server.send(200, "text/html", message);
+
+      fillBobLights(bottom, left, top, right, pct);
+      saveBobConfig();
+/*
+      // restart ESP
+      ESP.reset();
+      delay(2000);
+*/
+    }
+
+  }
+}
+
 
 void handleNotFound() {
   String message = "File Not Found\n\n";

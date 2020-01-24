@@ -1,11 +1,23 @@
+#include <stdint.h>
+#include <math.h>
+#include <Arduino.h>
+#include <ESP8266WiFi.h>          // Base ESP8266 includes
+#include <FastLED.h>
+
+
 #include "eepromdata.h"
 #include "effects.h"
 
+
+// This is an array of leds.  One item for each led in your strip.
+extern CRGB *leds[], gRGB;
+extern uint8_t gHue, gBrightness;
+
 boolean breakEffect = false;
-byte *heat[MAXZONES]; // Fire effect static data (for each zone; max 8)
+byte *heat[MAXZONES]; // Fire effect static data (for each zone; max 8); allocated in setup()
 
 typedef void (*NewKITTPatternList[])(CRGB, int, int, boolean);
-NewKITTPatternList gPatterns = {
+static NewKITTPatternList gPatterns = {
   LeftToRight,
   RightToLeft,
   OutsideToCenter,
@@ -15,8 +27,8 @@ NewKITTPatternList gPatterns = {
   OutsideToCenter,
   CenterToOutside
   };
-uint8_t gCurrentPattern = 0;
-uint8_t gBeat = 0;
+static uint8_t gCurrentPattern = 0;
+static uint8_t gBeat = 0;
 
 
 effect_name_t effects[] = {

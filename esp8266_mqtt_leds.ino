@@ -29,7 +29,7 @@
 //#define FASTLED_ALLOW_INTERRUPTS 0
 #define FASTLED_INTERRUPT_RETRY_COUNT 0
 #define FASTLED_ESP8266_RAW_PIN_ORDER
-#include "FastLED.h"
+#include <FastLED.h>
 
 // NOTE: FastLED is a very memory hungry library. Each call to FastLED.addLeds() consumes around 1k of
 // IRAM memory which is limited to 32k. Also ever static string gets stored to IRAM by default so we
@@ -48,11 +48,14 @@
 // If you go beyond 300 pixels you may notice some effects becoming slow. Using slow pixels (e.g. WS2801) doesn't
 // help either.
 
+
 // local includes
 
 #include "eepromdata.h"
 #include "effects.h"
 #include "webpages.h"
+#include "boblight.h"
+
 
 // global variables
 
@@ -98,6 +101,8 @@ char clientId[20];  // MQTT client ID
 char MQTTBASE[16] = "LEDstrip";
 
 WiFiClient espClient;
+WiFiServer bob(BOB_PORT);
+WiFiClient bobClient;
 PubSubClient client(espClient);
 
 // web server object
@@ -505,8 +510,19 @@ void setup() {
   server.on("/", handleRoot);
   server.on("/set", handleSet);
   server.on("/set/", handleSet);
+  server.on("/bob", handleBob);
+  server.on("/bob/", handleBob);
   server.onNotFound(handleNotFound);
   server.begin();
+
+  // read boblight configuration from FS json
+  if ( !loadBobConfig() || numLights == 0 ) {
+    fillBobLights(16,9,16,9,10);  // 50 lights == 1 WS2811 string
+    saveBobConfig();
+  }
+  
+  bob.begin();
+  bob.setNoDelay(true);
 }
 
 void loop() {
@@ -527,6 +543,10 @@ void loop() {
   // handle web server request
   server.handleClient();
   MDNS.update();
+
+
+  pollBob();
+
 
   selectedEffect = (effects_t)max(min((int)selectedEffect,(int)LAST_EFFECT),(int)OFF); // sanity check
   switch ( selectedEffect ) {
@@ -656,6 +676,7 @@ void loop() {
   }
   breakEffect = false;
 
+  yield();
 }
 
 // Apply LED color changes & allow other tasks (MQTT callback, ...)

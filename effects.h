@@ -1,13 +1,8 @@
 /*
  * effects.h  - master include for LED effects
  */
-#include "FastLED.h"
  
-// This is an array of leds.  One item for each led in your strip.
-extern CRGB *leds[], gRGB;
-
 extern boolean breakEffect;
-extern uint8_t gHue, gBrightness;
 
 // from master file
 void showStrip();
