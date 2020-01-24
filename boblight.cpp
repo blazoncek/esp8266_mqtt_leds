@@ -334,6 +334,7 @@ void pollBob() {
     //no free/disconnected spot so reject
     WiFiClient bobClient = bob.available();
     bobClient.stop();
+    BobClear();
   }
   
   //check clients for data
@@ -460,9 +461,5 @@ void pollBob() {
         }
       }
     }
-  }
-  else
-  {
-    BobClear();
   }
 }
