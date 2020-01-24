@@ -12,8 +12,6 @@
 #include "boblight.h"
 
 
-extern WiFiServer bob;
-extern WiFiClient bobClient;
 extern CRGB *leds[];
 extern uint16_t numLEDs[];
 
@@ -268,6 +266,7 @@ bool loadBobConfig()
         // Allocate a buffer to store contents of the file.
         char *buf = (char*)malloc(size+1);
         configFile.readBytes(buf, size);
+        buf[size] = '\0';
         
         #if DEBUG
         Serial.println(size,DEC);
@@ -301,7 +300,7 @@ bool loadBobConfig()
 void BobSync()
 {
   yield();    // allow other tasks
-  FastLED.show();
+  FastLED[bobStrip].showLeds(255);
 }
 
 void BobClear()

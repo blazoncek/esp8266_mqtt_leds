@@ -7,6 +7,7 @@
 
 #include "eepromdata.h"
 #include "effects.h"
+#include "boblight.h"
 
 
 // This is an array of leds.  One item for each led in your strip.
@@ -97,7 +98,7 @@ char const *effect_names[] = {
 //------------------------------------------------------//
 void solidColor(CRGB c) {
   //showColor(&c)
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], c);
   }
   showStrip();
@@ -125,7 +126,7 @@ void FadeInOut() {
   CRGB c = CHSV(gHue, 255, triwave8(beat8(20)));
   if ( triwave8(beat8(20))<5 ) gHue += 8;
   
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], c);
   }
   showStrip();
@@ -135,13 +136,13 @@ void FadeInOut() {
 //------------------------------------------------------//
 void Strobe(CRGB c, int FlashDelay) {
 
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], c);
   }
   showStrip();
   FastLED.delay(FlashDelay/2);
   
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], CRGB::Black);
   }
   showStrip();
@@ -158,7 +159,7 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
   }
   wait = millis() + random16(500,2500);
   
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
 
     if ( Fade )
       fadeToBlackBy(leds[z], numLEDs[z], 196);
@@ -195,7 +196,7 @@ void CylonBounce(int EyeSizePct, int SweepsPerMinute) {
   }
   pct = beat; // percent fill
 
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], CRGB::Black);
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
@@ -245,7 +246,7 @@ void CenterToOutside(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) 
   uint8_t beat = beat8(2*SweepsPerMinute);
   unsigned int pct = 50 - (beat*50)/255;
   
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
 
     if ( Fade )
       fadeToBlackBy(leds[z], numLEDs[z], 64);
@@ -271,7 +272,7 @@ void OutsideToCenter(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) 
   uint8_t beat = beat8(2*SweepsPerMinute);
   unsigned int pct = (beat*50)/255;
   
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
 
     if ( Fade )
       fadeToBlackBy(leds[z], numLEDs[z], 64);
@@ -297,7 +298,7 @@ void LeftToRight(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) {
   uint8_t beat = beat8(SweepsPerMinute);
   unsigned int pct = (beat*100)/255;
   
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
 
     if ( Fade )
       fadeToBlackBy(leds[z], numLEDs[z], 64);
@@ -323,7 +324,7 @@ void RightToLeft(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) {
   uint8_t beat = beat8(SweepsPerMinute);
   unsigned int pct = 100 - (beat*100)/255;
   
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
 
     if ( Fade )
       fadeToBlackBy(leds[z], numLEDs[z], 64);
@@ -347,7 +348,7 @@ void RightToLeft(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) {
 void Twinkle(int SpeedDelay, boolean OnlyOne) {
   CRGB c = CHSV(gHue, 255, 255);
   
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
 
     if ( !OnlyOne )
       fadeToBlackBy(leds[z], numLEDs[z], 16);
@@ -374,7 +375,7 @@ void TwinkleRandom(int SpeedDelay, boolean OnlyOne) {
 void sinelon(int SpeedDelay) {
 
   // a colored dot sweeping back and forth, with fading trails
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fadeToBlackBy(leds[z], numLEDs[z], 16);
     for ( int s=0; s<numSections[z]; s++ ) {
       int pos = beatsin16(12, sectionStart[z][s], sectionEnd[z][s]-1);
@@ -397,7 +398,7 @@ void bpm(int SpeedDelay) {
   uint8_t BeatsPerMinute = 62;
   CRGBPalette16 palette = RainbowColors_p; // PartyColors_p;
   uint8_t beat = beatsin8(BeatsPerMinute, 32, 255);
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) { //9948
         leds[z][i] = ColorFromPalette(palette, gHue+((i-sectionStart[z][s])*2), beat-gHue+((i-sectionStart[z][s])*10));
@@ -415,7 +416,7 @@ void bpm(int SpeedDelay) {
 void juggle(int SpeedDelay) {
 
   // eight colored dots, weaving in and out of sync with each other
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fadeToBlackBy(leds[z], numLEDs[z], 64);
     for ( int s=0; s<numSections[z]; s++ ) {
       byte dothue = 0;
@@ -436,7 +437,7 @@ void juggle(int SpeedDelay) {
 //------------------------------------------------------//
 void Sparkle(int SpeedDelay, CRGB c) {
 
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], c);
     for ( int s=0; s<numSections[z]; s++ ) {
       addGlitter(z, s, 75);
@@ -455,7 +456,7 @@ void snowSparkle(int SpeedDelay) {
 void runningLights(int WaveDelay) {
   static unsigned int offset = 0;
   
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       for ( int i=0; i<ledsPerSection; i++ ) {
@@ -494,7 +495,7 @@ void colorWipe(int WipesPerMinute, boolean Reverse) {
   } else {
     c = CHSV(gHue, 255, 255);
   }
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int nLeds = (pct * ledsPerSection) / 100;
@@ -517,7 +518,7 @@ void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
   // move by 1 pixel within window
   for ( int q=0; q<window; q++ ) {
 
-    for ( int z=0; z<numZones; z++ ) {
+    for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
       fill_solid(leds[z], numLEDs[z], c[2]);
       for ( int s=0; s<numSections[z]; s++ ) {
         int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
@@ -563,7 +564,7 @@ void theaterChase(CRGB cColor, int SpeedDelay) {
 void rainbowChase(int SpeedDelay) {
   static int q = 0;
 
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
 
@@ -585,7 +586,7 @@ void rainbowChase(int SpeedDelay) {
 //------------------------------------------------------//
 void rainbowCycle(int SpeedDelay) {
 
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue, max(1,255/ledsPerSection));
@@ -610,7 +611,7 @@ void rainbowBounce(int EyeSizePct, int SweepsPerMinute) {
   }
   pct = beat; // percent fill
 
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], CRGB::Black);
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
@@ -629,7 +630,7 @@ void rainbowBounce(int EyeSizePct, int SweepsPerMinute) {
 void Fire(int Cooling, int Sparking, int SpeedDelay) {
   int cooldown;
 
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
 
@@ -705,7 +706,7 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
   while ( ballsStillBouncing ) {
     if ( breakEffect ) return;
     
-    for ( int z=0; z<numZones; z++ ) {
+    for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
       fill_solid(leds[z], numLEDs[z], CRGB::Black);
       for ( int s=0; s<numSections[z]; s++ ) {
         int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
@@ -744,7 +745,7 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
   unsigned int meteorSize;
   unsigned int pct = (beat8(30)*100)/255; // 30 meteors/min
 
-  for ( int z=0; z<numZones; z++ ) {
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       meteorSize = ledsPerSection * meteorSizePct / 100;

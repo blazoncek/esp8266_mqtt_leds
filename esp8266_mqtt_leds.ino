@@ -552,12 +552,14 @@ void loop() {
   switch ( selectedEffect ) {
 
     case OFF :
-              for ( int z=0; z<numZones; z++ ) {
+              {
+              for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
                 fadeToBlackBy(leds[z], numLEDs[z], 32);
+                FastLED[z].showLeds(255);
               }
-              showStrip();
               delay(100);
               break;
+              }
 
     case SOLID :
               solidColor(gRGB);
@@ -681,12 +683,14 @@ void loop() {
 
 // Apply LED color changes & allow other tasks (MQTT callback, ...)
 void showStrip() {
-  yield();    // allow other tasks
-  if ( client.connected() )
-    client.loop(); //check MQTT
+//  yield();    // allow other tasks
+//  if ( client.connected() )
+//    client.loop(); //check MQTT
   
-  // FastLED
-  FastLED.show();
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
+    FastLED[z].showLeds(255);
+  }
+  //FastLED.show();
 }
 
 //---------------------------------------------------

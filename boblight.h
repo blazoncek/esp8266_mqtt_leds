@@ -11,6 +11,9 @@ extern light_t lights[];
 extern uint16_t numLights;
 extern uint8_t bobStrip;
 
+extern WiFiServer bob;
+extern WiFiClient bobClient;
+
 void pollBob();
 
 bool loadBobConfig();
