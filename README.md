@@ -1,13 +1,15 @@
-# ESP8266/ESP01 firmware to control WS28xx LED pixels used for holiday lights
+# ESP8266/ESP01 firmware to control WS28xx LED pixels used for holiday lights/boblight
 Simple holiday lights ESP8266 firmware with 20+ effects directly controllable from Domoticz. Number of LEDs per strip is configurable via MQTT message as is the type of LEDs used.
 Supports multiple zones (on multiple pins; max: 6) and up to 9 sections in each zone.
+Basic Boblight support on zone 0.
 Also supports Domoticz RGBW Switch type natively.
 
 ### Features
 - 20+ LED effects (
-- Set-up on first use / configure via MQTT
+- Set-up on first use / configure via MQTT/web server
 - Uses WiFi Manager for initial configuration
 - Change LED type & number of LEDs via MQTT message or embedded web interface
+- basic Boblight support (works with Kodi)
 - Restart and/or reset ESP to initial state via MQTT message
 - Supports OTA updates
 - Supports: WS2801, WS2811 and WS2812B LED strips
