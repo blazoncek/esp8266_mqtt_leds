@@ -662,7 +662,7 @@ void loop() {
     case COLORCHASE :
               {
               CRGB colors[3] = { CHSV(gHue,255,255), CHSV((gHue+128)&0xFF,255,255), CRGB::Black };
-              colorChase(colors, 4, 200, true);
+              colorChase(colors, 4, 75, true);
               gHue++;
               break;
               }
@@ -683,7 +683,7 @@ void loop() {
 
 // Apply LED color changes & allow other tasks (MQTT callback, ...)
 void showStrip() {
-//  yield();    // allow other tasks
+  yield();    // allow other tasks
 //  if ( client.connected() )
 //    client.loop(); //check MQTT
   

@@ -499,7 +499,7 @@ void colorWipe(int WipesPerMinute, boolean Reverse) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int nLeds = (pct * ledsPerSection) / 100;
-      if ( Reverse ) {
+      if ( !Reverse != !(bool)(s%2) ) { // Reverse XOR s==odd
         fill_solid(&leds[z][sectionEnd[z][s]-nLeds-1], nLeds, c);
       } else {
         fill_solid(&leds[z][sectionStart[z][s]], nLeds, c);
@@ -512,40 +512,39 @@ void colorWipe(int WipesPerMinute, boolean Reverse) {
 
 //------------------------------------------------------//
 void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
-  int window = 3*Size;  // c[] has 3 elements
-  int pos;
-  
-  // move by 1 pixel within window
-  for ( int q=0; q<window; q++ ) {
+  uint8_t window = 3*Size;  // c[] has 3 elements
+  uint16_t pos;
+  static uint8_t q = 0;
 
-    for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
-      fill_solid(leds[z], numLEDs[z], c[2]);
-      for ( int s=0; s<numSections[z]; s++ ) {
-        int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-        for ( int i=0; i<ledsPerSection; i+=window ) {
-          // turn LEDs on: ..++++####....++++####..   (size=4, . = black, + = c1, # = c2)
-          // turn LEDs on: ..####++++....####++++..   (size=4, . = black, + = c1, # = c2, Reverse)
-          for ( int j=0; j<Size; j++ ) {
-            if ( Reverse ) {
-              pos = (window-q-1) + (Size-j-1);
-              if ( (pos+Size)%window + i < ledsPerSection )
-                leds[z][sectionStart[z][s] + (pos+Size)%window + i] = c[0];
-              if ( pos%window + i < ledsPerSection )
-                leds[z][sectionStart[z][s] + pos%window + i] = c[1];
-            } else {
-              pos = q + j;
-              if ( pos%window + i < ledsPerSection )
-                leds[z][sectionStart[z][s] + pos%window + i] = c[0];
-              if ( (pos+Size)%window + i < ledsPerSection )
-                leds[z][sectionStart[z][s] + (pos+Size)%window + i] = c[1];
-            }
+  // move by 1 pixel within window
+  ++q %= window;
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
+    fill_solid(leds[z], numLEDs[z], c[2]);
+    for ( int s=0; s<numSections[z]; s++ ) {
+      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      for ( int i=0; i<ledsPerSection; i+=window ) {
+        // turn LEDs on: ..++++####....++++####..   (size=4, . = black, + = c1, # = c2)
+        // turn LEDs on: ..####++++....####++++..   (size=4, . = black, + = c1, # = c2, Reverse)
+        for ( int j=0; j<Size; j++ ) {
+          if ( !Reverse != !(bool)(s%2) ) { // Reverse XOR s==odd
+            pos = (window-q-1) + (Size-j-1);
+            if ( (pos+Size)%window + i < ledsPerSection )
+              leds[z][sectionStart[z][s] + (pos+Size)%window + i] = c[0];
+            if ( pos%window + i < ledsPerSection )
+              leds[z][sectionStart[z][s] + pos%window + i] = c[1];
+          } else {
+            pos = q + j;
+            if ( pos%window + i < ledsPerSection )
+              leds[z][sectionStart[z][s] + pos%window + i] = c[0];
+            if ( (pos+Size)%window + i < ledsPerSection )
+              leds[z][sectionStart[z][s] + (pos+Size)%window + i] = c[1];
           }
         }
       }
     }
-    showStrip();
-    FastLED.delay(SpeedDelay/Size);
   }
+  showStrip();
+  FastLED.delay(SpeedDelay);
 }
 
 //------------------------------------------------------//
@@ -568,10 +567,16 @@ void rainbowChase(int SpeedDelay) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
 
-      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue, max(1,255/ledsPerSection));
+      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue, (s%2?-1:1) * max(1,256/ledsPerSection));
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
-        if ( i%3 != q ) {
-          leds[z][i] = CRGB::Black;
+        if ( s%2 ) { // s==odd
+          if ( (2-(i%3)) != q ) {
+            leds[z][i] = CRGB::Black;
+          }
+        } else {
+          if ( i%3 != q ) {
+            leds[z][i] = CRGB::Black;
+          }
         }
       }
     }
@@ -750,6 +755,9 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       meteorSize = ledsPerSection * meteorSizePct / 100;
       unsigned int pos = sectionStart[z][s] + ((pct * ledsPerSection+2*meteorSize) / 100);
+      if ( s%2 ) {
+        pos = sectionEnd[z][s] - 1 - ((pct * ledsPerSection+2*meteorSize) / 100);
+      }
 
       // fade brightness all LEDs one step
       for ( int j=0; j<ledsPerSection; j++ ) {
