@@ -50,7 +50,7 @@ effect_name_t effects[] = {
   {THEATRECHASE,         "Theatre Chase"},
   {RAINBOWCHASE,         "Rainbow Chase"},
   {FIRE,                 "Fire"},
-  {BOUNCINGBALL,         "Bouncing ball"},
+  {GRADIENTCYCLE,        "Gradient Cycle"},
   {BOUNCINGCOLOREDBALLS, "3 bouncing balls"},
   {METEORRAIN,           "Meteor"},
   {SINELON,              "SineLon"},
@@ -80,7 +80,7 @@ char const *effect_names[] = {
   "Theatre Chase",
   "Rainbow Chase",
   "Fire",
-  "Bouncing ball",
+  "Gradient Cycle",
   "3 bouncing balls",
   "Meteor",
   "SineLon",
@@ -526,6 +526,7 @@ void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
         // turn LEDs on: ..++++####....++++####..   (size=4, . = black, + = c1, # = c2)
         // turn LEDs on: ..####++++....####++++..   (size=4, . = black, + = c1, # = c2, Reverse)
         for ( int j=0; j<Size; j++ ) {
+          // Every odd section is reversed (zig-zag mounted strips)
           if ( !Reverse != !(bool)(s%2) ) { // Reverse XOR s==odd
             pos = (window-q-1) + (Size-j-1);
             if ( (pos+Size)%window + i < ledsPerSection )
@@ -566,8 +567,10 @@ void rainbowChase(int SpeedDelay) {
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-
-      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue, (s%2?-1:1) * max(1,256/ledsPerSection));
+      int delta = (s%2?-1:1) * max(1,255/ledsPerSection);
+      uint8_t hue = (s%2?3*delta:0) + gHue;
+      
+      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, hue, delta);
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) {
         if ( s%2 ) { // s==odd
           if ( (2-(i%3)) != q ) {
@@ -589,12 +592,31 @@ void rainbowChase(int SpeedDelay) {
 }
 
 //------------------------------------------------------//
+void gradientCycle(int SpeedDelay) {
+
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
+    for ( int s=0; s<numSections[z]; s++ ) {
+      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
+      CHSV sHue = (s%2) ? CHSV(gHue+64,255,255): CHSV(gHue,255,255);
+      CHSV eHue = (s%2) ? CHSV(gHue,255,255): CHSV(gHue+64,255,255);
+      fill_gradient<CRGB>(&leds[z][sectionStart[z][s]], ledsPerSection, sHue, eHue);
+    }
+  }
+  showStrip();
+  FastLED.delay(SpeedDelay);
+  gHue++;
+}
+
+//------------------------------------------------------//
 void rainbowCycle(int SpeedDelay) {
 
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
-      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, gHue, max(1,255/ledsPerSection));
+      int delta = (s%2?-1:1) * max(1,255/ledsPerSection);
+      uint8_t hue = (s%2?3*delta:0) + gHue;
+      
+      fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, hue, delta);
     }
   }
   showStrip();

@@ -595,11 +595,11 @@ void loop() {
               break;
               
     case SPARKLE :
-              Sparkle(25);
+              Sparkle(50);
               break;
                
     case SNOWSPARKLE :
-              snowSparkle(25);
+              snowSparkle(50);
               break;
               
     case RUNNINGLIGHTS :
@@ -628,11 +628,8 @@ void loop() {
               Fire(50, 128, 15);
               break;
 
-    case BOUNCINGBALL :
-              // simple bouncingBalls not included, since BouncingColoredBalls can perform this as well as shown below
-              gRGB = CHSV(gHue,255,255);
-              bouncingColoredBalls(1, &gRGB);
-              gHue += 8;
+    case GRADIENTCYCLE :
+              gradientCycle(50);
               break;
 
     case BOUNCINGCOLOREDBALLS :
@@ -672,7 +669,7 @@ void loop() {
               break;
 
     case RAINBOWBOUNCE :
-              rainbowBounce(20, 30);
+              rainbowBounce(20, 45);
               break;
               
   }

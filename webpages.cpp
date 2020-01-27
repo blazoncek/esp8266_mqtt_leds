@@ -44,7 +44,7 @@ void handleRoot() {
     selectedEffect = (effects_t) server.arg("effect").toInt();
   }
   
-  postForm += F("<tr><td>Effect:</td><td><select name=\"effect\" size=\"1\">\n");
+  postForm += F("<tr><td>Effect:</td><td><select name=\"effect\" size=\"1\" onchange=\"this.form.submit();\">\n");
   
   for ( int i=0; i<=LAST_EFFECT; i++ ) {
     char buffer[64];

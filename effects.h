@@ -26,7 +26,7 @@ enum EFFECTS {
   THEATRECHASE,
   RAINBOWCHASE,
   FIRE,
-  BOUNCINGBALL,
+  GRADIENTCYCLE,
   BOUNCINGCOLOREDBALLS,
   METEORRAIN,
   SINELON,
@@ -74,6 +74,7 @@ void colorWipe(int WipesPerMinute=30, boolean Reverse=false);
 void colorChase(CRGB c[], int Size=1, int SpeedDelay=50, boolean Reverse=false);
 void christmasChase(int Size, int SpeedDelay=50, boolean Reverse=false);
 void theaterChase(CRGB c, int SpeedDelay=50);
+void gradientCycle(int SpeedDelay=10);
 void rainbowCycle(int SpeedDelay=10);
 void rainbowChase(int SpeedDelay=200);
 void rainbowBounce(int EyeSizePct=10, int SweepsPerMinute=60);
