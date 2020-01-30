@@ -48,7 +48,7 @@ void handleRoot() {
   
   for ( int i=0; i<=LAST_EFFECT; i++ ) {
     char buffer[64];
-    snprintf_P(buffer, 64, _EFFECT_OPTION, i, (i==selectedEffect ? _SELECTED : PSTR("")), effect_names[i]);
+    snprintf_P(buffer, 64, _EFFECT_OPTION, i, (i==selectedEffect ? _SELECTED : PSTR("")), effects[i].name);
     postForm += buffer;
   }
   postForm += F("</select></td></tr>\n");

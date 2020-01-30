@@ -39,7 +39,7 @@ enum EFFECTS {
 };
 typedef EFFECTS effects_t;
 
-typedef struct EFFCT_NAME {
+typedef struct EFFECT_NAME {
   effects_t id;
   char name[20];
 } effect_name_t;
@@ -58,10 +58,10 @@ void Strobe(CRGB c, int FlashDelay=50);
 void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade=true);
 void CylonBounce(int EyeSizePct, int SweepsPerMinute=60);
 void NewKITT(int EyeSizePct, int SweepsPerMinute=60);
-void CenterToOutside(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade=true);
-void OutsideToCenter(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade=true);
-void LeftToRight(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade=true);
-void RightToLeft(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade=true);
+void CenterToOutside(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade=true);
+void OutsideToCenter(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade=true);
+void LeftToRight(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade=true);
+void RightToLeft(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade=true);
 void Twinkle(int SpeedDelay, boolean OnlyOne=false);
 void TwinkleRandom(int SpeedDelay, boolean OnlyOne=false);
 void sinelon(int SpeedDelay=10);

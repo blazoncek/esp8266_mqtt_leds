@@ -17,7 +17,7 @@ extern uint8_t gHue, gBrightness;
 boolean breakEffect = false;
 byte *heat[MAXZONES]; // Fire effect static data (for each zone; max 8); allocated in setup()
 
-typedef void (*NewKITTPatternList[])(CRGB, int, int, boolean);
+typedef void (*NewKITTPatternList[])(CRGB, int, uint8_t, boolean);
 static NewKITTPatternList gPatterns = {
   LeftToRight,
   RightToLeft,
@@ -61,35 +61,6 @@ effect_name_t effects[] = {
   {RAINBOWBOUNCE,        "Rainbow Bounce"}
 };
 
-
-char const *effect_names[] = {
-  "Off",
-  "Solid Color",
-  "Fade In&Out",
-  "Strobe",
-  "Haloween Eyes",
-  "Cylon Bounce",
-  "New KITT",
-  "Twinkle",
-  "Twinkle random",
-  "Sparkle",
-  "Snow Sparkle",
-  "Running lights",
-  "Color Wipe",
-  "Rainbow Cycle",
-  "Theatre Chase",
-  "Rainbow Chase",
-  "Fire",
-  "Gradient Cycle",
-  "3 bouncing balls",
-  "Meteor",
-  "SineLon",
-  "Pusling Colors",
-  "8 juggling dots",
-  "Color Chase",
-  "Christmass Chase",
-  "Rainbow Bounce"
-};
 
 // *************************
 // ** LEDEffect Functions **
@@ -215,8 +186,7 @@ void CylonBounce(int EyeSizePct, int SweepsPerMinute) {
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 void nextPattern() {
   gCurrentPattern = (gCurrentPattern + 1) % ARRAY_SIZE(gPatterns);
-//  if ( gCurrentPattern == 0 )
-    gHue += 4;
+  gHue += 4;
 }
 
 //------------------------------------------------------//
@@ -230,20 +200,18 @@ void NewKITT(int EyeSizePct, int SweepsPerMinute) {
     newB = beat8(SweepsPerMinute);
   }
 
-  // Call the current pattern function once, updating the 'leds' array
-  if ( newB > gBeat ) {
-    gPatterns[gCurrentPattern](c, EyeSizePct, SweepsPerMinute, true);
-  } else {
+  if ( newB <= gBeat ) {
     nextPattern();
   }
+  // Call the current pattern function once, updating the 'leds' array
+  gPatterns[gCurrentPattern](c, EyeSizePct, newB, true);
   gBeat = newB;
   FastLED.delay(15);
 }
 
 // used by NewKITT
-void CenterToOutside(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) {
+void CenterToOutside(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade) {
   unsigned int EyeSize;
-  uint8_t beat = beat8(2*SweepsPerMinute);
   unsigned int pct = 50 - (beat*50)/255;
   
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
@@ -267,9 +235,8 @@ void CenterToOutside(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) 
 }
 
 // used by NewKITT
-void OutsideToCenter(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) {
+void OutsideToCenter(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade) {
   unsigned int EyeSize;
-  uint8_t beat = beat8(2*SweepsPerMinute);
   unsigned int pct = (beat*50)/255;
   
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
@@ -284,8 +251,8 @@ void OutsideToCenter(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) 
       EyeSize = EyeSizePct * ledsPerSection / 100;
       unsigned int pos = ((pct * (ledsPerSection-EyeSize)) / 100);
 
-      for ( int j=1; j<=EyeSize; j++ ) {
-        leds[z][sectionStart[z][s]+pos+j] = leds[z][sectionEnd[z][s]-pos-j] = c; 
+      for ( int j=0; j<EyeSize; j++ ) {
+        leds[z][sectionStart[z][s]+pos+j] = leds[z][sectionEnd[z][s]-pos-j+1] = c; 
       }
     }
   }
@@ -293,9 +260,8 @@ void OutsideToCenter(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) 
 }
 
 // used by NewKITT
-void LeftToRight(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) {
+void LeftToRight(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade) {
   unsigned int EyeSize;
-  uint8_t beat = beat8(SweepsPerMinute);
   unsigned int pct = (beat*100)/255;
   
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
@@ -319,9 +285,8 @@ void LeftToRight(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) {
 }
 
 // used by NewKITT
-void RightToLeft(CRGB c, int EyeSizePct, int SweepsPerMinute, boolean Fade) {
+void RightToLeft(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade) {
   unsigned int EyeSize;
-  uint8_t beat = beat8(SweepsPerMinute);
   unsigned int pct = 100 - (beat*100)/255;
   
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
