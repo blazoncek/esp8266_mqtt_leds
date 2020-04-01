@@ -68,7 +68,6 @@ effect_name_t effects[] = {
 
 //------------------------------------------------------//
 void solidColor(CRGB c) {
-  //showColor(&c)
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], c);
   }

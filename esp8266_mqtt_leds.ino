@@ -73,7 +73,7 @@ CRGB *leds[MAXZONES];
 
 uint8_t gHue = 0;
 uint8_t gBrightness = 255;  // used for solid effect
-CRGB gRGB;
+CRGB gRGB = CRGB::White;    // used for solid effect
 
 effects_t selectedEffect = OFF;
 
@@ -552,17 +552,18 @@ void loop() {
   switch ( selectedEffect ) {
 
     case OFF :
-              {
               for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
                 fadeToBlackBy(leds[z], numLEDs[z], 32);
                 FastLED[z].showLeds(255);
               }
-              delay(100);
+              delay(50);
               break;
-              }
 
     case SOLID :
-              solidColor(gRGB);
+              for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
+                FastLED[z].showColor(gRGB, gBrightness);
+              }
+              delay(50);
               break;
 
     case FADEINOUT :
@@ -752,7 +753,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         Serial.println(F("RGB(W) switch found."));
         #endif
 
-        if ( doc["Color"]["m"] == 3 ) {
+        if ( doc["Color"]["m"] == 3 ) { // colour mode = RGB(W)
           
           r = doc["Color"]["r"];
           g = doc["Color"]["g"];
@@ -772,7 +773,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
           Serial.println(b,DEC);
           #endif
 
-        } else if ( doc["Color"]["m"] == 1 ) {
+        } else if ( doc["Color"]["m"] == 1 ) { // colour mode = monochrome
           
           w = doc["Color"]["ww"];
           //w = doc["Color"]["cw"];
@@ -795,7 +796,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         Serial.println(gBrightness, DEC);
         #endif
 
-        if ( gBrightness ) {
+        if ( gBrightness && doc["nvalue"]) { // doc["nvalue"]==0 -> OFF
           selectedEffect = SOLID; // solid color effect
         } else {
           selectedEffect = OFF; // off
@@ -837,6 +838,26 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     deserializeJson(doc, payload);
 
     if ( doc["turn"] == "on" ) {
+      int r = doc["red"];
+      int g = doc["green"];
+      int b = doc["blue"];
+      int w = doc["white"]; // reserver for future
+  
+      gRGB = CRGB(r,g,b);
+  
+      int gain = doc["gain"];
+      gBrightness = (int) (gain/100.0 * 255);
+      
+      #if DEBUG
+      Serial.println(F("Color found."));
+      Serial.print(F("R: "));
+      Serial.println(r,DEC);
+      Serial.print(F("G: "));
+      Serial.println(g,DEC);
+      Serial.print(F("B: "));
+      Serial.println(b,DEC);
+      #endif
+
       selectedEffect = SOLID;
     }
 
@@ -857,26 +878,6 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       selectedEffect = OFF;
     }
     
-    int r = doc["red"];
-    int g = doc["green"];
-    int b = doc["blue"];
-    int w = doc["white"]; // reserver for future
-
-    gRGB = CRGB(r,g,b);
-
-    int gain = doc["gain"];
-    gBrightness = (int) (gain/100.0 * 255);
-    
-    #if DEBUG
-    Serial.println(F("Color found."));
-    Serial.print(F("R: "));
-    Serial.println(r,DEC);
-    Serial.print(F("G: "));
-    Serial.println(g,DEC);
-    Serial.print(F("B: "));
-    Serial.println(b,DEC);
-    #endif
-
   } else if ( strstr(topic, MQTTBASE) && strstr(topic, clientId) ) {
     
     if ( strstr_P(topic, PSTR("/set/idx")) ) {
