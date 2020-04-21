@@ -495,9 +495,11 @@ void setup() {
 
   // initialize MQTT connection & provide callback function
   sprintf_P(outTopic, PSTR("%s/%s"), MQTTBASE, clientId);
-      
-  client.setServer(mqtt_server, atoi(mqtt_port));
-  client.setCallback(mqtt_callback);
+
+  if ( strlen(mqtt_server) > 0 ) {
+    client.setServer(mqtt_server, atoi(mqtt_port));
+    client.setCallback(mqtt_callback);
+  }
 
   // web server setup
   if (MDNS.begin(clientId)) {
@@ -533,12 +535,14 @@ void loop() {
   // handle OTA updates
   ArduinoOTA.handle();
 
-  // handle MQTT reconnects
-  if (!client.connected()) {
-    mqtt_reconnect();
+  if ( strlen(mqtt_server) > 0 ) {
+    // handle MQTT reconnects
+    if (!client.connected()) {
+      mqtt_reconnect();
+    }
+    // MQTT message processing
+    client.loop();
   }
-  // MQTT message processing
-  client.loop();
 
   // handle web server request
   server.handleClient();

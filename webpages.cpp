@@ -42,6 +42,11 @@ void handleRoot() {
       postForm += F("<tr><td colspan=\"2\">BAD ARGUMENT</td></tr>\n");
     }
     selectedEffect = (effects_t) server.arg("effect").toInt();
+
+    #if DEBUG
+    Serial.print("Selected effect: ");
+    Serial.println(selectedEffect, DEC);
+    #endif
   }
   
   postForm += F("<tr><td>Effect:</td><td><select name=\"effect\" size=\"1\" onchange=\"this.form.submit();\">\n");
