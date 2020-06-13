@@ -583,36 +583,36 @@ void loop() {
               break;
               
     case CYLONBOUNCE :
-              CylonBounce(8, 60); // 8% , 60/min
+              CylonBounce(8, 45); // 8% size, 45/min
               break;
               
     case NEWKITT :
-              NewKITT(5, 45);
+              NewKITT(5, 45); // 5% size, 45/min
               break;
               
     case TWINKLE :
-              Twinkle(25, false);
+              Twinkle(25, false); // 25ms delay
               gHue++;
               break;
               
     case TWINKLERANDOM :
-              TwinkleRandom(25, false);
+              TwinkleRandom(25, false); // 25ms delay
               break;
               
     case SPARKLE :
-              Sparkle(50);
+              Sparkle(50);  // 50ms delay
               break;
                
     case SNOWSPARKLE :
-              snowSparkle(50);
+              snowSparkle(50); // 50ms delay
               break;
               
     case RUNNINGLIGHTS :
-              runningLights(50);
+              runningLights(50); // 50ms delay
               break;
               
     case COLORWIPE :
-              colorWipe(30);  // 30/min
+              colorWipe(45);  // 45/min
               break;
 
     case RAINBOWCYCLE :
@@ -620,12 +620,12 @@ void loop() {
               break;
 
     case THEATRECHASE :
-              theaterChase(CHSV(gHue,255,255),100);
+              theaterChase(CHSV(gHue,255,255),100); // 100ms delay
               gHue++;
               break;
 
     case RAINBOWCHASE :
-              rainbowChase(100);
+              rainbowChase(100);  // 100ms delay
               break;
 
     case FIRE :
@@ -634,7 +634,7 @@ void loop() {
               break;
 
     case GRADIENTCYCLE :
-              gradientCycle(50);
+              gradientCycle(50);  // 50ms delay
               break;
 
     case BOUNCINGCOLOREDBALLS :
@@ -646,7 +646,7 @@ void loop() {
               }
 
     case METEORRAIN :
-              meteorRain(8, 64, true, 10);
+              meteorRain(8, 64, true, 10);  // 8% size, 64 decay, random decay, 10ms delay
               break;
 
     case SINELON :
@@ -664,17 +664,17 @@ void loop() {
     case COLORCHASE :
               {
               CRGB colors[3] = { CHSV(gHue,255,255), CHSV((gHue+128)&0xFF,255,255), CRGB::Black };
-              colorChase(colors, 4, 75, true);
+              colorChase(colors, 4, 75, true);  // 4 pixel size, 75ms delay, reverse
               gHue++;
               break;
               }
 
     case CHRISTMASCHASE :
-              christmasChase(4);
+              christmasChase(4);  // 4 pixel size
               break;
 
     case RAINBOWBOUNCE :
-              rainbowBounce(20, 45);
+              rainbowBounce(20, 45);  // 20% size, 45/min
               break;
               
   }

@@ -171,7 +171,7 @@ void CylonBounce(int EyeSizePct, int SweepsPerMinute) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
-      unsigned int pos = sectionStart[z][s] + (((dir?100-pct:pct) * (ledsPerSection-(EyeSize+2))) / 100);
+      unsigned int pos = sectionStart[z][s] + ((((s%2 ? !dir : dir) ? 100-pct : pct) * (ledsPerSection-(EyeSize+2))) / 100);
       leds[z][pos] = leds[z][pos+EyeSize+1] = c/8;
       for ( int j=1; j<=EyeSize; j++ ) {
         leds[z][pos+j] = c; 
@@ -365,7 +365,9 @@ void bpm(int SpeedDelay) {
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       for ( int i=sectionStart[z][s]; i<sectionEnd[z][s]; i++ ) { //9948
-        leds[z][i] = ColorFromPalette(palette, gHue+((i-sectionStart[z][s])*2), beat-gHue+((i-sectionStart[z][s])*10));
+        int hue = s%2 ? ((sectionEnd[z][s]-i)*2) : ((i-sectionStart[z][s])*2);
+        int val = s%2 ? ((sectionEnd[z][s]-i)*10) : ((i-sectionStart[z][s])*10);
+        leds[z][i] = ColorFromPalette(palette, gHue+hue, beat-gHue+val);
       }
     }
   }
@@ -448,7 +450,7 @@ void colorWipe(int WipesPerMinute, boolean Reverse) {
     return;
   } else if ( pct > beat && pct > 99 ) {  // roll-over, erase the section
     blank = !blank;
-    if ( blank ) gHue += 8;
+    if ( blank ) gHue += 8; // slightly change the hue
   } else if ( pct > beat && pct < 100 ) {
     beat = 100;
   }
@@ -464,7 +466,7 @@ void colorWipe(int WipesPerMinute, boolean Reverse) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int nLeds = (pct * ledsPerSection) / 100;
       if ( !Reverse != !(bool)(s%2) ) { // Reverse XOR s==odd
-        fill_solid(&leds[z][sectionEnd[z][s]-nLeds-1], nLeds, c);
+        fill_solid(&leds[z][sectionEnd[z][s]-nLeds], nLeds, c);
       } else {
         fill_solid(&leds[z][sectionStart[z][s]], nLeds, c);
       }
@@ -607,7 +609,7 @@ void rainbowBounce(int EyeSizePct, int SweepsPerMinute) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
-      unsigned int pos = sectionStart[z][s] + (((dir?100-pct:pct) * (ledsPerSection-EyeSize)) / 100);
+      unsigned int pos = sectionStart[z][s] + ((((s%2 ? !dir : dir) ? 100-pct : pct) * (ledsPerSection-EyeSize)) / 100);
       fill_rainbow(&leds[z][pos], EyeSize, 0, max(1,(int)(255/EyeSize)));
     }
   }
