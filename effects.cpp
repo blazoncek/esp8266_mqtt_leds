@@ -642,18 +642,16 @@ void Fire(int Cooling, int Sparking, int SpeedDelay) {
       
       // Step 2.  Heat from each cell drifts 'up' and diffuses a little
       for ( int k=ledsPerSection-1; k>=2; k-- ) {
-        if ( s%2 == 1 ) {
-          heat[z][sectionStart[z][s]+ledsPerSection-k] = (heat[z][sectionStart[z][s]+ledsPerSection-k + 1] + heat[z][sectionStart[z][s]+ledsPerSection-k + 2] + heat[z][sectionStart[z][s]+ledsPerSection-k + 2]) / 3;
+        if ( s%2 ) {
+          heat[z][sectionEnd[z][s]-1-k] = (heat[z][sectionEnd[z][s]-1-(k-1)] + heat[z][sectionEnd[z][s]-1-(k-2)] + heat[z][sectionEnd[z][s]-1-(k-2)]) / 3;
         } else {
-          heat[z][sectionStart[z][s]+k] = (heat[z][sectionStart[z][s]+k - 1] + heat[z][sectionStart[z][s]+k - 2] + heat[z][sectionStart[z][s]+k - 2]) / 3;
+          heat[z][sectionStart[z][s]+k] = (heat[z][sectionStart[z][s]+(k-1)] + heat[z][sectionStart[z][s]+(k-2)] + heat[z][sectionStart[z][s]+(k-2)]) / 3;
         }
-        if ( k==2 )
-          heat[z][sectionStart[z][s]+k-1] = heat[z][sectionStart[z][s]+k - 2] / 2;
       }
         
       // Step 3.  Randomly ignite new 'sparks' near the bottom
       if( random8() < Sparking ) {
-        int y = random8(7);
+        int y = random8(max(5,ledsPerSection/10));
         if ( s%2 == 1 ) {
           heat[z][sectionStart[z][s]+ledsPerSection-y-1] = heat[z][sectionStart[z][s]+ledsPerSection-y-1] + random8(160,255);
         } else {
@@ -736,22 +734,25 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
 //------------------------------------------------------//
 void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
   unsigned int meteorSize;
-  unsigned int pct = (beat8(30)*100)/255; // 30 meteors/min
+  byte pct = (beat8(30)*100)/255; // 30 meteors/min
 
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s];
       meteorSize = ledsPerSection * meteorSizePct / 100;
-      unsigned int pos = sectionStart[z][s] + ((pct * ledsPerSection+2*meteorSize) / 100);
-      if ( s%2 ) {
-        pos = sectionEnd[z][s] - 1 - ((pct * ledsPerSection+2*meteorSize) / 100);
-      }
 
       // fade brightness all LEDs one step
       for ( int j=0; j<ledsPerSection; j++ ) {
         if ( (!meteorRandomDecay) || (random8(10)>5) ) {
           leds[z][sectionStart[z][s]+j].fadeToBlackBy(meteorTrailDecay);
         }
+      }
+
+      // draw the meteor only when pct is between 0 & 67
+      byte newpct = (byte)min(100,(int)(((float)pct/66.67)*100));
+      unsigned int pos = sectionStart[z][s] + ((newpct * ledsPerSection+2*meteorSize) / 100);
+      if ( s%2 ) {
+        pos = sectionEnd[z][s] - 1 - ((newpct * ledsPerSection+2*meteorSize) / 100);
       }
 
       for ( int j=0; j<meteorSize; j++ ) {
