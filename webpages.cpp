@@ -182,8 +182,8 @@ void handleSet() {
       
       if ( argN.substring(0,8) == "sections" ) {
         int z = atoi(argN.substring(8).c_str());
-        char tmp[32];
-        argV.toCharArray(tmp, 32);
+        char tmp[64];
+        argV.toCharArray(tmp, 64);
         char *buf = strtok(tmp, ",;");
         int sections=0;
         while ( buf != NULL && sections<MAXSECTIONS ) {
