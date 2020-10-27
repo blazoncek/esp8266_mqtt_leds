@@ -8,6 +8,8 @@
 
 // global includes (libraries)
 
+#define MQTT_MAX_PACKET_SIZE 1024 // does not work always!!! Please change library include (PubSubClient.h)
+
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 
 #include <pgmspace.h>
@@ -21,7 +23,6 @@
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
-#define MQTT_MAX_PACKET_SIZE 1024
 #include <PubSubClient.h>         // MQTT client
 
 #include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
@@ -736,6 +737,14 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     DynamicJsonDocument doc(2048);
     deserializeJson(doc, payload);
 
+    #if DEBUG
+    Serial.print(F("idx: "));
+    Serial.print(c_idx);
+    Serial.print(F(" IDX: "));
+    int idx=doc["idx"];
+    Serial.println(idx,DEC);
+    #endif
+
     // if we have idx field equal to our idx
     if ( doc["idx"] == atoi(c_idx) ) {
       
@@ -801,39 +810,27 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         #endif
 
         if ( gBrightness && doc["nvalue"]) { // doc["nvalue"]==0 -> OFF
-          selectedEffect = SOLID; // solid color effect
+          changeEffect(SOLID);  // solid color effect
         } else {
-          selectedEffect = OFF; // off
+          changeEffect(OFF);    // off
         }
         
       } else {  // doc["switchType"]=="Selector" && doc["dtype"]=="Light/Switch"
         
         // selector switch -> apply new effect
-        selectedEffect = (effects_t)(actionId/10);
-        gHue = 0;           // reset hue
-        breakEffect = true; // interrupt current effect
-
+        changeEffect((effects_t)(actionId/10));
         FastLED.setBrightness(255);
 
       }
 
-      // Publish effect state
-      sprintf_P(tmp, PSTR("%s/effect"), outTopic);
-      sprintf_P(msg, PSTR("%d"), (int)selectedEffect);
-      client.publish(tmp, msg);
-    
-      #if DEBUG
-      Serial.print(F("Selected effect: "));
-      Serial.println((int)selectedEffect, DEC);
-      #endif
     }
 
   } else if ( strstr_P(topic, PSTR("shellies/")) && strstr(topic, clientId) && strstr_P(topic, PSTR("/color/0/command")) ) {
 
     if ( newPayload == "on" ) {
-      selectedEffect = SOLID;
+      changeEffect(SOLID);  // solid color effect
     } else {
-      selectedEffect = OFF;
+      changeEffect(OFF);    // off
     }
     
   } else if ( strstr_P(topic, PSTR("shellies/")) && strstr(topic, clientId) && strstr_P(topic, PSTR("/color/0/set")) ) {
@@ -862,7 +859,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       Serial.println(b,DEC);
       #endif
 
-      selectedEffect = SOLID;
+      changeEffect(SOLID);  // solid color effect
     }
 
     if ( doc["effect"] != 0 ) {
@@ -879,7 +876,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     }
 
     if ( doc["turn"] == "off" ) {
-      selectedEffect = OFF;
+      changeEffect(OFF);
     }
     
   } else if ( strstr(topic, MQTTBASE) && strstr(topic, clientId) ) {
@@ -903,14 +900,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   
     } else if ( strstr_P(topic, PSTR("/set/effect")) || strstr_P(topic, PSTR("/command/effect")) ) {
       
-      selectedEffect = (effects_t)newPayload.toInt();
-      gHue = 0;           // reset hue
-      breakEffect = true; // interrupt current effect
-      
-      #if DEBUG
-      Serial.print(F("New effect: "));
-      Serial.println((int)selectedEffect, DEC);
-      #endif
+      changeEffect((effects_t)newPayload.toInt());
   
     } else if ( strstr_P(topic, PSTR("/set/hue")) ) {
       
@@ -1117,6 +1107,31 @@ void mqtt_reconnect() {
       delay(5000);
     }
   }
+}
+
+//-------------------------------------------------
+// private functions
+
+// change current effect
+void changeEffect(effects_t effect) {
+  char tmp[64];
+
+  selectedEffect = effect;
+  gHue = 0;           // reset hue
+  breakEffect = true; // interrupt current effect
+
+  if ( client.connected() ) {
+    // Publish effect state
+    sprintf_P(tmp, PSTR("%s/effect"), outTopic);
+    sprintf_P(msg, PSTR("%d"), (int)selectedEffect);
+    client.publish(tmp, msg);
+  }
+
+  #if DEBUG
+  Serial.print("New effect: ");
+  Serial.println(selectedEffect, DEC);
+  #endif
+
 }
 
 // reverses a string 'str' of length 'len' 

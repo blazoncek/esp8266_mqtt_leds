@@ -10,6 +10,7 @@
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
 #include <EEPROM.h>
 #include <FastLED.h>
+#include <PubSubClient.h>         // MQTT client
 
 
 #include "eepromdata.h"
@@ -23,6 +24,7 @@ extern char zoneLEDType[][7];
 extern uint16_t numLEDs[];
 
 extern effects_t selectedEffect;
+void changeEffect(effects_t effect);
 
 static const char HTML_HEAD[] PROGMEM = "<html>\n<head>\n<title>Configure LED strips</title>\n<style>body {background-color:#cccccc;font-family:Arial,Helvetica,Sans-Serif;Color:#000088;}</style>\n</head>\n<body>\n";
 static const char HTML_FOOT[] PROGMEM = "</body>\n</html>";
@@ -34,6 +36,7 @@ static const char _LED_OPTION[] PROGMEM = "<option value=\"%S\"%S>%S</option>\n"
 static const char _EFFECT_OPTION[] PROGMEM = "<option value=\"%d\"%S>%s</option>\n";   // %S for PROGMEM strings, %s for regular
 
 void handleRoot() {
+  char tmp[64];
   String sections, postForm = FPSTR(HTML_HEAD);
   
   postForm += F("<form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/\">\n<table>\n");
@@ -41,12 +44,20 @@ void handleRoot() {
     if ( server.args() == 0 ) {
       postForm += F("<tr><td colspan=\"2\">BAD ARGUMENT</td></tr>\n");
     }
-    selectedEffect = (effects_t) server.arg("effect").toInt();
 
-    #if DEBUG
-    Serial.print("Selected effect: ");
-    Serial.println(selectedEffect, DEC);
-    #endif
+    changeEffect((effects_t) server.arg("effect").toInt());
+
+  } else {
+ 
+    if ( server.args() > 0 ) {
+      if ( server.arg("e") == "" ) {     //Parameter not found
+      } else {     //Parameter found
+
+        changeEffect((effects_t) server.arg("e").toInt());
+
+      }
+    }
+
   }
   
   postForm += F("<tr><td>Effect:</td><td><select name=\"effect\" size=\"1\" onchange=\"this.form.submit();\">\n");
