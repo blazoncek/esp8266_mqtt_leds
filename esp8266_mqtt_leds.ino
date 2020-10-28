@@ -221,12 +221,12 @@ void setup() {
       memcpy(tmp, e.zoneData[i].sectionStart[j], 3);
       tmp[4] = '\0';
       sectionStart[i][j] = atoi(tmp);
-      sectionEnd[i][j] = numLEDs[i];  // will be overwritten later
+      sectionEnd[i][j] = numLEDs[i]-1;  // will be overwritten later
 
       if ( sectionStart[i][j] != 0 || j==0 ) {
         numSections[i]++;
         if ( j>0 )
-          sectionEnd[i][j-1] = sectionStart[i][j];
+          sectionEnd[i][j-1] = sectionStart[i][j]-1;  // because 1st section starts with 0
       }
     }
     #if DEBUG
