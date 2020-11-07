@@ -93,8 +93,8 @@ void RGBLoop() {
 
 //------------------------------------------------------//
 void FadeInOut() {
-  CRGB c = CHSV(gHue, 255, triwave8(beat8(20)));
-  if ( triwave8(beat8(20))<5 ) gHue += 8;
+  CRGB c = CHSV(gHue, 255, triwave8(beat8(10)));
+  if ( triwave8(beat8(10))<2 ) gHue += 8;
   
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], c);
@@ -157,7 +157,7 @@ void CylonBounce(int EyeSizePct, int SweepsPerMinute) {
   static unsigned int pct = 0;  // starting position
   CRGB c = CRGB::Red;
   
-  uint8_t beat = beat8(SweepsPerMinute)*100/255;
+  uint8_t beat = round((float)beat8(SweepsPerMinute)*100/255);
   if ( pct == beat ) {  // if there is no change in position just exit
     FastLED.delay(15);
     return;
@@ -171,7 +171,7 @@ void CylonBounce(int EyeSizePct, int SweepsPerMinute) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
-      unsigned int pos = sectionStart[z][s] + ((((s%2 ? !dir : dir) ? 100-pct : pct) * (ledsPerSection-(EyeSize+2))) / 100);
+      unsigned int pos = sectionStart[z][s] + (unsigned int)round(((float)(((s%2 ? !dir : dir) ? 100-pct : pct) * (ledsPerSection-(EyeSize+2))) / 100));
       leds[z][pos] = leds[z][pos+EyeSize+1] = c/8;
       for ( int j=1; j<=EyeSize; j++ ) {
         leds[z][pos+j] = c; 
@@ -273,7 +273,7 @@ void LeftToRight(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       EyeSize = EyeSizePct * ledsPerSection / 100;
-      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
+      unsigned int pos = sectionStart[z][s] + (((s%2 ? 100-pct : pct) * (ledsPerSection-EyeSize)) / 100);
 
       for ( int j=0; j<EyeSize; j++ ) {
         leds[z][pos+j] = c; 
@@ -298,7 +298,7 @@ void RightToLeft(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       EyeSize = EyeSizePct * ledsPerSection / 100;
-      unsigned int pos = sectionStart[z][s] + ((pct * (ledsPerSection-EyeSize)) / 100);
+      unsigned int pos = sectionStart[z][s] + (((s%2 ? 100-pct : pct) * (ledsPerSection-EyeSize)) / 100);
 
       for ( int j=0; j<EyeSize; j++ ) {
         leds[z][pos+j] = c; 
@@ -426,7 +426,7 @@ void runningLights(int WaveDelay) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       for ( int i=0; i<ledsPerSection; i++ ) {
-        unsigned int level = sin8( (i*1280/ledsPerSection + offset) & 0xFF );  // 5 waves
+        unsigned int level = sin8( (s%2 ? -1 : 1)*(i*1280/ledsPerSection + offset) & 0xFF );  // 5 waves
         leds[z][sectionStart[z][s] + i] = CHSV(gHue, 255, level);
       }
     }
@@ -488,7 +488,7 @@ void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       int delta = (s%2?-1:1) * max(1,255/ledsPerSection);
-      uint8_t hue = (s%2?3*delta:0) + gHue;
+      uint8_t hue = (s%2 ? (ledsPerSection-1)*abs(delta) : 0) + gHue;
 
       if ( c[0].getLuma()==0 && c[1].getLuma()==0 && c[2].getLuma()==0 ) {  // all black so we do a rainbow chase
         fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, hue, delta);
@@ -565,8 +565,7 @@ void rainbowCycle(int SpeedDelay) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       int delta = (s%2?-1:1) * max(1,255/ledsPerSection);
-      uint8_t hue = (s%2?3*delta:0) + gHue;
-      
+      uint8_t hue = (s%2 ? (ledsPerSection-1)*abs(delta) : 0) + gHue;
       fill_rainbow(&leds[z][sectionStart[z][s]], ledsPerSection, hue, delta);
     }
   }
@@ -580,7 +579,7 @@ void rainbowBounce(int EyeSizePct, int SweepsPerMinute) {
   static boolean dir = false;   // start left-to-right
   static unsigned int pct = 0;  // starting position
   
-  uint8_t beat = beat8(SweepsPerMinute)*100/255;
+  uint8_t beat = round((float)beat8(SweepsPerMinute)*100/255);
   if ( pct == beat ) {  // if there is no change in position just exit
     FastLED.delay(10);
     return;
@@ -594,7 +593,7 @@ void rainbowBounce(int EyeSizePct, int SweepsPerMinute) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
-      unsigned int pos = sectionStart[z][s] + ((((s%2 ? !dir : dir) ? 100-pct : pct) * (ledsPerSection-EyeSize)) / 100);
+      unsigned int pos = sectionStart[z][s] + (unsigned int)round((((s%2 ? !dir : dir) ? 100-pct : pct) * (ledsPerSection-EyeSize)) / 100);
       int delta = (s%2?-1:1) * max(1,255/(int)EyeSize);
       uint8_t hue = (s%2?delta:0) /*+ gHue*/;
 
@@ -722,7 +721,7 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
 //------------------------------------------------------//
 void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
   unsigned int meteorSize;
-  byte pct = (beat8(30)*100)/255; // 30 meteors/min
+  byte pct = (beat8(20)*100)/255; // 20 meteors/min
 
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {

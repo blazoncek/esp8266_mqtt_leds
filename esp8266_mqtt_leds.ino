@@ -584,7 +584,7 @@ void loop() {
               break;
               
     case CYLONBOUNCE :
-              CylonBounce(8, 45); // 8% size, 45/min
+              CylonBounce(10, 30); // 10% size, 30/min
               break;
               
     case NEWKITT :
@@ -592,12 +592,12 @@ void loop() {
               break;
               
     case TWINKLE :
-              Twinkle(25, false); // 25ms delay
+              Twinkle(25, false); // 25ms delay, fade pixels
               gHue++;
               break;
               
     case TWINKLERANDOM :
-              TwinkleRandom(25, false); // 25ms delay
+              TwinkleRandom(25, false); // 25ms delay, fade pixels
               break;
               
     case SPARKLE :
@@ -613,7 +613,7 @@ void loop() {
               break;
               
     case COLORWIPE :
-              colorWipe(45);  // 45/min
+              colorWipe(30);  // 30/min
               break;
 
     case RAINBOWCYCLE :
@@ -675,7 +675,7 @@ void loop() {
               break;
 
     case RAINBOWBOUNCE :
-              rainbowBounce(20, 45);  // 20% size, 45/min
+              rainbowBounce(25, 30);  // 25% size, 30/min
               break;
               
   }
@@ -736,14 +736,6 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 
     DynamicJsonDocument doc(2048);
     deserializeJson(doc, payload);
-
-    #if DEBUG
-    Serial.print(F("idx: "));
-    Serial.print(c_idx);
-    Serial.print(F(" IDX: "));
-    int idx=doc["idx"];
-    Serial.println(idx,DEC);
-    #endif
 
     // if we have idx field equal to our idx
     if ( doc["idx"] == atoi(c_idx) ) {
