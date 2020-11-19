@@ -56,7 +56,7 @@ void RGBLoop();
 void FadeInOut();
 void Strobe(CRGB c, int FlashDelay=50);
 void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade=true);
-void CylonBounce(int EyeSizePct, int SweepsPerMinute=60);
+void eyeBounce(CRGB c, int EyeSizePct, int SweepsPerMinute=60);
 void NewKITT(int EyeSizePct, int SweepsPerMinute=60);
 void CenterToOutside(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade=true);
 void OutsideToCenter(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade=true);
@@ -77,7 +77,6 @@ void theaterChase(CRGB c, int SpeedDelay=50);
 void gradientCycle(int SpeedDelay=10);
 void rainbowCycle(int SpeedDelay=10);
 void rainbowChase(int SpeedDelay=200);
-void rainbowBounce(int EyeSizePct=10, int SweepsPerMinute=60);
 void Fire(int Cooling, int Sparking, int SpeedDelay);
 void bouncingColoredBalls(int BallCount, CRGB colors[]);
 void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
@@ -86,6 +85,7 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
 void addGlitter(int zone, int section, fract8 chanceOfGlitter);
 
 // private functions
+unsigned int getPosFromPct(unsigned int pct, unsigned int ledsPerSection, byte width=1, bool Reverse=false);
 void setPixelHeatColor(int zone, int Pixel, byte temperature);
 CRGB * getRGBfromHue(byte hue);
 CRGB * getRGBfromHeat(byte temp);

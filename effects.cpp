@@ -152,10 +152,9 @@ void HalloweenEyes(CRGB c, int EyeWidth, int EyeSpace, boolean Fade) {
 }
 
 //------------------------------------------------------//
-void CylonBounce(int EyeSizePct, int SweepsPerMinute) {
+void eyeBounce(CRGB c, int EyeSizePct, int SweepsPerMinute) {
   static boolean dir = false;   // start left-to-right
   static unsigned int pct = 0;  // starting position
-  CRGB c = CRGB::Red;
   
   uint8_t beat = round((float)beat8(SweepsPerMinute)*100/255);
   if ( pct == beat ) {  // if there is no change in position just exit
@@ -171,10 +170,16 @@ void CylonBounce(int EyeSizePct, int SweepsPerMinute) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
-      unsigned int pos = sectionStart[z][s] + (unsigned int)round(((float)(((s%2 ? !dir : dir) ? 100-pct : pct) * (ledsPerSection-(EyeSize+2))) / 100));
-      leds[z][pos] = leds[z][pos+EyeSize+1] = c/8;
-      for ( int j=1; j<=EyeSize; j++ ) {
-        leds[z][pos+j] = c; 
+      unsigned int pos = sectionStart[z][s] + getPosFromPct(pct, ledsPerSection, EyeSize, (s%2 ? !dir : dir));
+
+      // if the color is black fill rainbow
+      if ( c.r==0 && c.g==0 && c.b==0 ) {
+        int delta = (s%2?-1:1) * max(1,255/(int)EyeSize);
+        uint8_t hue = (s%2?delta:0) /*+ gHue*/;
+        fill_rainbow(&leds[z][pos], EyeSize, hue, delta);
+      } else {
+        fill_solid(&leds[z][pos], EyeSize, c);
+        leds[z][pos] = leds[z][pos+EyeSize-1] = c/8;
       }
     }
   }
@@ -273,7 +278,7 @@ void LeftToRight(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       EyeSize = EyeSizePct * ledsPerSection / 100;
-      unsigned int pos = sectionStart[z][s] + (((s%2 ? 100-pct : pct) * (ledsPerSection-EyeSize)) / 100);
+      unsigned int pos = sectionStart[z][s] + getPosFromPct(pct, ledsPerSection, EyeSize, s%2);
 
       for ( int j=0; j<EyeSize; j++ ) {
         leds[z][pos+j] = c; 
@@ -298,7 +303,7 @@ void RightToLeft(CRGB c, int EyeSizePct, uint8_t beat, boolean Fade) {
     for ( int s=0; s<numSections[z]; s++ ) {
       unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       EyeSize = EyeSizePct * ledsPerSection / 100;
-      unsigned int pos = sectionStart[z][s] + (((s%2 ? 100-pct : pct) * (ledsPerSection-EyeSize)) / 100);
+      unsigned int pos = sectionStart[z][s] + getPosFromPct(pct, ledsPerSection, EyeSize, s%2);
 
       for ( int j=0; j<EyeSize; j++ ) {
         leds[z][pos+j] = c; 
@@ -426,8 +431,12 @@ void runningLights(int WaveDelay) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
       for ( int i=0; i<ledsPerSection; i++ ) {
-        unsigned int level = sin8( (s%2 ? -1 : 1)*(i*1280/ledsPerSection + offset) & 0xFF );  // 5 waves
-        leds[z][sectionStart[z][s] + i] = CHSV(gHue, 255, level);
+        unsigned int level = sin8( (i*1280/ledsPerSection + offset) & 0xFF );  // 5 waves
+        if ( s%2 ) {
+          leds[z][sectionEnd[z][s] - i-1] = CHSV(gHue, 255, level);
+        } else {
+          leds[z][sectionStart[z][s] + i] = CHSV(gHue, 255, level);
+        }
       }
     }
   }
@@ -473,7 +482,7 @@ void colorWipe(int WipesPerMinute, boolean Reverse) {
     }
   }
   showStrip();
-  FastLED.delay(5);
+  FastLED.delay(30);
 }
 
 //------------------------------------------------------//
@@ -572,37 +581,6 @@ void rainbowCycle(int SpeedDelay) {
   showStrip();
   FastLED.delay(SpeedDelay);
   gHue++;
-}
-
-//------------------------------------------------------//
-void rainbowBounce(int EyeSizePct, int SweepsPerMinute) {
-  static boolean dir = false;   // start left-to-right
-  static unsigned int pct = 0;  // starting position
-  
-  uint8_t beat = round((float)beat8(SweepsPerMinute)*100/255);
-  if ( pct == beat ) {  // if there is no change in position just exit
-    FastLED.delay(10);
-    return;
-  } else if ( pct > beat ) {  // roll-over, erase the section
-    dir = !dir;
-  }
-  pct = beat; // percent fill
-
-  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
-    fill_solid(leds[z], numLEDs[z], CRGB::Black);
-    for ( int s=0; s<numSections[z]; s++ ) {
-      unsigned int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
-      unsigned int EyeSize = max(1,(int)(EyeSizePct * ledsPerSection / 100));
-      unsigned int pos = sectionStart[z][s] + (unsigned int)round((((s%2 ? !dir : dir) ? 100-pct : pct) * (ledsPerSection-EyeSize)) / 100);
-      int delta = (s%2?-1:1) * max(1,255/(int)EyeSize);
-      uint8_t hue = (s%2?delta:0) /*+ gHue*/;
-
-      fill_rainbow(&leds[z][pos], EyeSize, hue, delta);
-    }
-  }
-  
-  showStrip();
-  FastLED.delay(15);
 }
 
 //------------------------------------------------------//
@@ -720,7 +698,7 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
 
 //------------------------------------------------------//
 void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
-  unsigned int meteorSize;
+  unsigned int meteorSize, pos;
   byte pct = (beat8(20)*100)/255; // 20 meteors/min
 
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
@@ -735,17 +713,14 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
         }
       }
 
-      // draw the meteor only when pct is between 0 & 67
-      byte newpct = (byte)min(100,(int)(((float)pct/66.67)*100));
-      unsigned int pos = sectionStart[z][s] + ((newpct * ledsPerSection+2*meteorSize) / 100);
-      if ( s%2 ) {
-        pos = sectionEnd[z][s] - ((newpct * ledsPerSection+2*meteorSize) / 100);
-      }
-
-      for ( int j=0; j<meteorSize; j++ ) {
-        if ( (pos-j < sectionEnd[z][s]) && (pos-j >= sectionStart[z][s]) ) {
-          leds[z][pos-j] = CRGB::White;
-        } 
+      // draw the meteor only when pct is between 0 & 50
+      if ( pct <= 50 ) {
+        int newpct = pct * 2;
+        pos = sectionStart[z][s] + getPosFromPct(newpct, ledsPerSection, meteorSize, s%2);
+  
+        for ( int j=0; j<meteorSize; j++ ) {
+          leds[z][pos+j] = CRGB::White;
+        }
       }
     }
   }
@@ -757,6 +732,11 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
 // ***************************************
 // ** Common Functions **
 // ***************************************
+
+unsigned int getPosFromPct(unsigned int pct, unsigned int ledsPerSection, byte width, bool Reverse) {
+  if ( width<1 || width>=ledsPerSection ) return 0;
+  return (unsigned int) round(((float)((Reverse ? 100-pct : pct) * (ledsPerSection-width)) / 100));
+}
 
 void addGlitter(int zone, int section, fract8 chanceOfGlitter) {
   if ( (random8()*100)/255 < chanceOfGlitter ) {

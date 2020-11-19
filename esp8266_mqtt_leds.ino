@@ -584,7 +584,7 @@ void loop() {
               break;
               
     case CYLONBOUNCE :
-              CylonBounce(10, 30); // 10% size, 30/min
+              eyeBounce(CRGB::Red, 10, 30); // 10% size, 30/min
               break;
               
     case NEWKITT :
@@ -609,7 +609,7 @@ void loop() {
               break;
               
     case RUNNINGLIGHTS :
-              runningLights(50); // 50ms delay
+              runningLights(30); // 30ms delay
               break;
               
     case COLORWIPE :
@@ -647,7 +647,7 @@ void loop() {
               }
 
     case METEORRAIN :
-              meteorRain(8, 64, true, 10);  // 8% size, 64 decay, random decay, 10ms delay
+              meteorRain(8, 32, true, 10);  // 8% size, 64 decay, random decay, 10ms delay
               break;
 
     case SINELON :
@@ -675,7 +675,7 @@ void loop() {
               break;
 
     case RAINBOWBOUNCE :
-              rainbowBounce(25, 30);  // 25% size, 30/min
+              eyeBounce(CRGB::Black, 25, 30);  // 25% size, 30/min
               break;
               
   }
