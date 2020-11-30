@@ -14,7 +14,7 @@
 extern CRGB *leds[], gRGB;
 extern uint8_t gHue, gBrightness;
 
-boolean breakEffect = false;
+boolean volatile breakEffect = false;
 byte *heat[MAXZONES]; // Fire effect static data (for each zone; max 8); allocated in setup()
 
 typedef void (*NewKITTPatternList[])(CRGB, int, uint8_t, boolean);
@@ -433,7 +433,7 @@ void runningLights(int WaveDelay) {
       for ( int i=0; i<ledsPerSection; i++ ) {
         unsigned int level = sin8( (i*1280/ledsPerSection + offset) & 0xFF );  // 5 waves
         if ( s%2 ) {
-          leds[z][sectionEnd[z][s] - i-1] = CHSV(gHue, 255, level);
+          leds[z][sectionEnd[z][s] - i] = CHSV(gHue, 255, level);
         } else {
           leds[z][sectionStart[z][s] + i] = CHSV(gHue, 255, level);
         }

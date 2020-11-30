@@ -2,7 +2,7 @@
  * effects.h  - master include for LED effects
  */
  
-extern boolean breakEffect;
+extern boolean volatile breakEffect;
 
 // from master file
 void showStrip();
