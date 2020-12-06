@@ -751,7 +751,7 @@ void rotateChase(CRGB c, int speedDelay) {
       for ( int i=0; i<ledsPerSection; i+=window ) {
         // turn LEDs on: ..++++....++++..   (size=4, . = black, + = c)
         for ( int j=0; j<numSections[z]; j++ ) {  // size == numSections[z]
-          uint16_t pos = s + q[z] + j;
+          uint16_t pos = 2*s + q[z] + j;
 
           // Every odd section is reversed (zig-zag mounted strips)
           if ( (s%2) ) {
