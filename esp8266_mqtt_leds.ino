@@ -57,7 +57,7 @@
 #include "webpages.h"
 #include "boblight.h"
 
-
+#define POWER_RELAY 12    // GPIO12 (D6) or GPIO14 (D5)
 // global variables
 
 eeprom_data_t e;
@@ -72,8 +72,8 @@ char     zoneLEDType[MAXZONES][7];            // LED type for each zone (WS2801,
 // This is an array of leds.  One item for each led in your strip.
 CRGB *leds[MAXZONES];
 
-uint8_t gHue = 0;
-uint8_t gBrightness = 255;  // used for solid effect
+uint8_t volatile gHue = 0;
+uint8_t volatile gBrightness = 255;  // used for solid effect
 CRGB gRGB = CRGB::White;    // used for solid effect
 
 effects_t selectedEffect = OFF;
@@ -186,9 +186,11 @@ void setup() {
     tmp[4] = '\0';
     sprintf_P(c_idx, PSTR("%d"), atoi(tmp)); 
     numZones = ((char*)&e)[6] - '0';
+    gBrightness = e.iBrightness;
   } else {
     strcpy_P(c_idx, PSTR("0"));
     numZones = 0;
+    gBrightness = 255;
   }
 
   #if DEBUG
@@ -278,7 +280,7 @@ void setup() {
           strcpy(mqtt_port, doc[_MQTTPRT]);
           strcpy(username, doc[_USERNAME]);
           strcpy(password, doc[_PASSWORD]);
-          #if DEBUG
+          #if DEBUG 
           serializeJson(doc, Serial);
           Serial.println();
           #endif
@@ -531,6 +533,7 @@ void setup() {
 void loop() {
 
   // get the pixel color from hue
+  //EVERY_N_MILLISECONDS( 50 ) { gHue++; }  // Slowly cycle through the rainbow
   gHue &= 0xFF;
 
   // handle OTA updates
@@ -559,7 +562,7 @@ void loop() {
     case OFF :
               for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
                 fadeToBlackBy(leds[z], numLEDs[z], 32);
-                FastLED[z].showLeds(255);
+                FastLED[z].showLeds(gBrightness);
               }
               delay(50);
               break;
@@ -678,6 +681,13 @@ void loop() {
               eyeBounce(CRGB::Black, 25, 30);  // 25% size, 30/min
               break;
               
+    case ROTATECHASE :
+              {
+              rotateChase(CHSV(gHue,255,255), 75);  // 75ms delay
+              gHue++;
+              break;
+              }
+
   }
   breakEffect = false;
 
@@ -691,7 +701,7 @@ void showStrip() {
 //    client.loop(); //check MQTT
   
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
-    FastLED[z].showLeds(255);
+    FastLED[z].showLeds(gBrightness);
   }
   //FastLED.show();
 }
@@ -793,7 +803,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
 
         gBrightness = doc["Level"];
-        gBrightness = min(max((int)gBrightness,0),255);
+        gBrightness = min(max((int)gBrightness,1),255);
         FastLED.setBrightness(gBrightness);
 
         #if DEBUG
@@ -811,7 +821,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         
         // selector switch -> apply new effect
         changeEffect((effects_t)(actionId/10));
-        FastLED.setBrightness(255);
+        FastLED.setBrightness(gBrightness);
 
       }
 

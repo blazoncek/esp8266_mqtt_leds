@@ -22,11 +22,15 @@
 extern char c_idx[];
 extern char zoneLEDType[][7];
 extern uint16_t numLEDs[];
+extern uint8_t  gBrightness;
 
 extern effects_t selectedEffect;
 void changeEffect(effects_t effect);
 
-static const char HTML_HEAD[] PROGMEM = "<html>\n<head>\n<title>Configure LED strips</title>\n<style>body {background-color:#cccccc;font-family:Arial,Helvetica,Sans-Serif;Color:#000088;}</style>\n</head>\n<body>\n";
+static const char HTML_HEAD[] PROGMEM = "<html>\n<head>\n<title>LED strip</title>\n"
+  "<meta name=\"viewport\" content=\"initial-scale=1, maximum-scale=1.0, minimum-scale=1, user-scalable=no, width=device-width\">\n"
+  "<style>body {background-color:#cccccc;font-family:Arial,Helvetica,Sans-Serif;Color:#000088;}@media screen and (max-width:479px) {body{font-size:12pt;}</style>\n"
+  "</head>\n<body>\n";
 static const char HTML_FOOT[] PROGMEM = "</body>\n</html>";
 static const char _WS2801[] PROGMEM = "WS2801";
 static const char _WS2811[] PROGMEM = "WS2811";
@@ -34,9 +38,10 @@ static const char _WS2812[] PROGMEM = "WS2812";
 static const char _SELECTED[] PROGMEM = " selected";
 static const char _LED_OPTION[] PROGMEM = "<option value=\"%S\"%S>%S</option>\n";      // %S for PROGMEM strings, %s for regular
 static const char _EFFECT_OPTION[] PROGMEM = "<option value=\"%d\"%S>%s</option>\n";   // %S for PROGMEM strings, %s for regular
+static const char _LED_BRIGHTNESS[] PROGMEM = "<tr><td>Brightness:</td><td><input name=\"b\" size=\"3\" value=\"%d\"></td></tr>\n";
 
 void handleRoot() {
-  char tmp[64];
+  char tmp[128];
   String sections, postForm = FPSTR(HTML_HEAD);
   
   postForm += F("<form method=\"post\" enctype=\"application/x-www-form-urlencoded\" action=\"/\">\n<table>\n");
@@ -45,16 +50,19 @@ void handleRoot() {
       postForm += F("<tr><td colspan=\"2\">BAD ARGUMENT</td></tr>\n");
     }
 
+    gBrightness = min(255,max(1,(int)server.arg("b").toInt()));
+    FastLED.setBrightness(gBrightness);
     changeEffect((effects_t) server.arg("effect").toInt());
 
   } else {
  
     if ( server.args() > 0 ) {
-      if ( server.arg("e") == "" ) {     //Parameter not found
-      } else {     //Parameter found
-
+      if ( server.arg("b") != "" ) {    // brightness
+        gBrightness = min(255,max(1,(int)server.arg("b").toInt()));
+        FastLED.setBrightness(gBrightness);
+      }
+      if ( server.arg("e") != "" ) {    // effect
         changeEffect((effects_t) server.arg("e").toInt());
-
       }
     }
 
@@ -63,11 +71,12 @@ void handleRoot() {
   postForm += F("<tr><td>Effect:</td><td><select name=\"effect\" size=\"1\" onchange=\"this.form.submit();\">\n");
   
   for ( int i=0; i<=LAST_EFFECT; i++ ) {
-    char buffer[64];
-    snprintf_P(buffer, 64, _EFFECT_OPTION, i, (i==selectedEffect ? _SELECTED : PSTR("")), effects[i].name);
-    postForm += buffer;
+    snprintf_P(tmp, 127, _EFFECT_OPTION, i, (i==selectedEffect ? _SELECTED : PSTR("")), effects[i].name);
+    postForm += tmp;
   }
   postForm += F("</select></td></tr>\n");
+  snprintf_P(tmp, 127, _LED_BRIGHTNESS, gBrightness);
+  postForm += tmp;
   postForm += F("<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" value=\"Submit\"></td></tr>\n</table>\n</form>\n");
   postForm += F("<a href=\"/set/\">Configure LED strips</a><br>\n");
   postForm += F("<a href=\"/bob/\">Configure Boblight</a><br>\n");
@@ -76,7 +85,7 @@ void handleRoot() {
 }
 
 void handleSet() {
-  char buffer[64];
+  char buffer[128];
   
   if (server.method() != HTTP_POST) {
 
@@ -87,7 +96,10 @@ void handleSet() {
         "<tr><td>Domoticz IDX:</td><td><input type=\"text\" name=\"idx\" value=\"");
     postForm += String(atoi(c_idx));
     postForm += F("\"></td></tr>\n");
-      
+
+    snprintf_P(buffer, 127, _LED_BRIGHTNESS, gBrightness);
+    postForm += buffer;
+
     for ( int i=0; i<MAXZONES; i++ ) {
       sections = "0";
       for ( int j=1; j<numSections[i]; j++ ) {
@@ -167,6 +179,14 @@ void handleSet() {
         #if DEBUG
         Serial.print("idx: ");
         Serial.println(c_idx);
+        #endif
+      }
+      
+      if ( argN == "b" ) {
+        e.iBrightness = max(1,min(255,(int)argV.toInt()));
+        #if DEBUG
+        Serial.print("brightness: ");
+        Serial.println(e.iBrightness);
         #endif
       }
       

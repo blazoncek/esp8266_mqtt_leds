@@ -58,7 +58,8 @@ effect_name_t effects[] = {
   {JUGGLE,               "8 juggling dots"},
   {COLORCHASE,           "Color Chase"},
   {CHRISTMASCHASE,       "Christmass Chase"},
-  {RAINBOWBOUNCE,        "Rainbow Bounce"}
+  {RAINBOWBOUNCE,        "Rainbow Bounce"},
+  {ROTATECHASE,          "Rotating Chase"}
 };
 
 
@@ -93,8 +94,9 @@ void RGBLoop() {
 
 //------------------------------------------------------//
 void FadeInOut() {
-  CRGB c = CHSV(gHue, 255, triwave8(beat8(10)));
-  if ( triwave8(beat8(10))<2 ) gHue += 8;
+  int v = triwave8(beat8(10));
+  CRGB c = CHSV(gHue, 255, v);
+  if ( v<2 ) gHue += 8;
   
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     fill_solid(leds[z], numLEDs[z], c);
@@ -727,6 +729,45 @@ void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomD
   
   showStrip();
   FastLED.delay(SpeedDelay);
+}
+
+//------------------------------------------------------//
+// colorChase with only two colors, with each section shifted 1 pixel
+// this will simulate rotating spiral
+// we have to assume equal number of leds in each section
+void rotateChase(CRGB c, int speedDelay) {
+  static uint8_t q[MAXZONES]; // even though it may be uninitialized it is ok
+
+  for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
+    int window = 2*numSections[z];
+    // move by 1 pixel each run
+    ++q[z] %= window; // we fix uninitialized value
+
+    fill_solid(leds[z], numLEDs[z], CRGB::Black);
+
+    for ( int s=0; s<numSections[z]; s++ ) {
+      int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
+
+      for ( int i=0; i<ledsPerSection; i+=window ) {
+        // turn LEDs on: ..++++....++++..   (size=4, . = black, + = c)
+        for ( int j=0; j<numSections[z]; j++ ) {  // size == numSections[z]
+          uint16_t pos = s + q[z] + j;
+
+          // Every odd section is reversed (zig-zag mounted strips)
+          if ( (s%2) ) {
+            if ( pos%window + i < ledsPerSection )
+              leds[z][sectionEnd[z][s] - pos%window - i] = c;
+          } else {
+            if ( pos%window + i < ledsPerSection )
+              leds[z][sectionStart[z][s] + pos%window + i] = c;
+          }
+
+        }
+      }
+    }
+  }
+  showStrip();
+  FastLED.delay(speedDelay);
 }
 
 // ***************************************

@@ -39,6 +39,7 @@ typedef struct EEPROM_DATA_T {
   char idx[3];
   char nZones;
   zone_data_t zoneData[MAXZONES];
+  uint8_t iBrightness;
 } eeprom_data_t;
 
 extern eeprom_data_t e;
