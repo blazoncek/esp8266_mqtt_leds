@@ -21,6 +21,7 @@
 #include <EEPROM.h>
 #include <DNSServer.h>            // Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
+#include <ESP8266HTTPUpdateServer.h>    // http OTA updates
 #include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
 #include <PubSubClient.h>         // MQTT client
@@ -108,6 +109,7 @@ PubSubClient client(espClient);
 
 // web server object
 ESP8266WebServer server(80);
+ESP8266HTTPUpdateServer httpUpdater;
 
 // private functions
 void mqtt_callback(char*, byte*, unsigned int);
@@ -136,6 +138,9 @@ void setup() {
 
   Serial.begin(115200);
   delay(3000);
+
+  pinMode(POWER_RELAY, OUTPUT);
+  digitalWrite(POWER_RELAY, LOW);
 
   String WiFiMAC = WiFi.macAddress();
   WiFiMAC.replace(F(":"),F(""));
@@ -511,6 +516,8 @@ void setup() {
     Serial.println(F("MDNS responder started."));
     #endif
   }
+
+  httpUpdater.setup(&server);
 
   server.on("/", handleRoot);
   server.on("/set", handleSet);
@@ -1025,6 +1032,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       Serial.println(F("Restarting..."));
       #endif
       
+      digitalWrite(POWER_RELAY, LOW);
+
       // restart ESP
       ESP.reset();
       delay(2000);
@@ -1035,6 +1044,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       Serial.println(F("Factory reset..."));
       #endif
       
+      digitalWrite(POWER_RELAY, LOW);
+
       // erase EEPROM
       EEPROM.begin(EEPROM_SIZE);
       for ( int i=0; i<EEPROM_SIZE; i++ ) {
@@ -1134,6 +1145,11 @@ void changeEffect(effects_t effect) {
   Serial.println(selectedEffect, DEC);
   #endif
 
+  if ( selectedEffect == OFF ) {
+    digitalWrite(POWER_RELAY, LOW);
+  } else {
+    digitalWrite(POWER_RELAY, HIGH);
+  }
 }
 
 // reverses a string 'str' of length 'len' 
