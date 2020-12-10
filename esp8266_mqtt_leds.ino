@@ -674,26 +674,19 @@ void loop() {
     case COLORCHASE :
               {
               CRGB colors[3] = { CHSV(gHue,255,255), CHSV((gHue+128)&0xFF,255,255), CRGB::Black };
-              colorChase(colors, 4, 75, true);  // 4 pixel size, 75ms delay, reverse
+              colorChase(colors, 4, 50, true);  // 4 pixel size, 50ms delay, rotating if possible
               gHue++;
               break;
               }
 
     case CHRISTMASCHASE :
-              christmasChase(4);  // 4 pixel size
+              christmasChase(4);  // 4 pixel size, default delay 50ms, not rotating
               break;
 
     case RAINBOWBOUNCE :
               eyeBounce(CRGB::Black, 25, 30);  // 25% size, 30/min
               break;
               
-    case ROTATECHASE :
-              {
-              rotateChase(CHSV(gHue,255,255), 75);  // 75ms delay
-              gHue++;
-              break;
-              }
-
   }
   breakEffect = false;
 

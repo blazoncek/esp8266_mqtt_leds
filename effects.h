@@ -35,8 +35,7 @@ enum EFFECTS {
   COLORCHASE,
   CHRISTMASCHASE,
   RAINBOWBOUNCE,
-  ROTATECHASE,
-  LAST_EFFECT = ROTATECHASE
+  LAST_EFFECT = RAINBOWBOUNCE
 };
 typedef EFFECTS effects_t;
 
@@ -81,7 +80,6 @@ void rainbowChase(int SpeedDelay=200);
 void Fire(int Cooling, int Sparking, int SpeedDelay);
 void bouncingColoredBalls(int BallCount, CRGB colors[]);
 void meteorRain(byte meteorSizePct, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);
-void rotateChase(CRGB c, int speedDelay);
 
 // Common Functions
 void addGlitter(int zone, int section, fract8 chanceOfGlitter);
