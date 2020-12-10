@@ -29,7 +29,7 @@ void changeEffect(effects_t effect);
 
 static const char HTML_HEAD[] PROGMEM = "<html>\n<head>\n<title>LED strip</title>\n"
   "<meta name=\"viewport\" content=\"initial-scale=1, maximum-scale=1.0, minimum-scale=1, user-scalable=no, width=device-width\">\n"
-  "<style>body {background-color:#cccccc;font-family:Arial,Helvetica,Sans-Serif;Color:#000088;}@media screen and (max-width:479px) {body{font-size:12pt;}</style>\n"
+  "<style>body {background-color:#cccccc;font-family:Arial,Helvetica,Sans-Serif;Color:#000088;}@media screen and (max-width:479px) {body{font-size:14pt;}</style>\n"
   "</head>\n<body>\n";
 static const char HTML_FOOT[] PROGMEM = "</body>\n</html>";
 static const char _WS2801[] PROGMEM = "WS2801";

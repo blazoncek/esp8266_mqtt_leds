@@ -139,9 +139,6 @@ void setup() {
   Serial.begin(115200);
   delay(3000);
 
-  pinMode(POWER_RELAY, OUTPUT);
-  digitalWrite(POWER_RELAY, LOW);
-
   String WiFiMAC = WiFi.macAddress();
   WiFiMAC.replace(F(":"),F(""));
   WiFiMAC.toCharArray(mac_address, 16);
@@ -535,6 +532,8 @@ void setup() {
   
   bob.begin();
   bob.setNoDelay(true);
+
+  pinMode(POWER_RELAY, OUTPUT);
 }
 
 void loop() {
@@ -1146,8 +1145,14 @@ void changeEffect(effects_t effect) {
   #endif
 
   if ( selectedEffect == OFF ) {
+    #if DEBUG
+    Serial.println("Relay off");
+    #endif
     digitalWrite(POWER_RELAY, LOW);
   } else {
+    #if DEBUG
+    Serial.println("Relay on");
+    #endif
     digitalWrite(POWER_RELAY, HIGH);
   }
 }
