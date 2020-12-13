@@ -608,42 +608,42 @@ void rainbowCycle(int SpeedDelay) {
 //------------------------------------------------------//
 // borrowed from FastLED demo
 void Fire(int Cooling, int Sparking, int SpeedDelay) {
-  int cooldown;
 
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
     for ( int s=0; s<numSections[z]; s++ ) {
       int ledsPerSection = sectionEnd[z][s]-sectionStart[z][s]+1;
+      uint16_t pos;
+      uint8_t cooldown;
 
       // Odd an even sections are 'burnng' from the oposite ends.
       
       // Step 1.  Cool down every cell a little
-      for ( int i=sectionStart[z][s]; i<=sectionEnd[z][s]; i++ ) {
-        cooldown = random16(0, ((Cooling * 10) / ledsPerSection) + 2);
-        
-        if ( cooldown>heat[z][i] ) {
-          heat[z][i] = ((s%2==0 && i<sectionStart[z][s]+7) || (s%2==1 && i>=sectionEnd[z][s]-7)) ? 2 : 0;
+      for ( int i=0; i<ledsPerSection; i++ ) {
+        cooldown = random8(0, ((Cooling * 10) / ledsPerSection) + 2);
+        pos = s%2 ? sectionEnd[z][s]-i : sectionStart[z][s]+i;
+        // prevent bottommost pixels becoming black
+        if ( cooldown>heat[z][pos] ) {
+          heat[z][pos] = (i<7) ? 2 : 0;
         } else {
-          heat[z][i] = heat[z][i]-cooldown;
+          heat[z][pos] -= cooldown;
         }
       }
       
       // Step 2.  Heat from each cell drifts 'up' and diffuses a little
       for ( int k=ledsPerSection-1; k>=2; k-- ) {
+        pos = s%2 ? sectionEnd[z][s]-k : sectionStart[z][s]+k;
         if ( s%2 ) {
-          heat[z][sectionEnd[z][s]-k] = (heat[z][sectionEnd[z][s]-(k-1)] + heat[z][sectionEnd[z][s]-(k-2)] + heat[z][sectionEnd[z][s]-(k-2)]) / 3;
+          heat[z][pos] = (heat[z][pos+1] + ((heat[z][pos+2])<<1)) / 3;
         } else {
-          heat[z][sectionStart[z][s]+k] = (heat[z][sectionStart[z][s]+(k-1)] + heat[z][sectionStart[z][s]+(k-2)] + heat[z][sectionStart[z][s]+(k-2)]) / 3;
+          heat[z][pos] = (heat[z][pos-1] + ((heat[z][pos-2])<<1)) / 3;
         }
       }
         
-      // Step 3.  Randomly ignite new 'sparks' near the bottom
+      // Step 3.  Randomly ignite new 'spark' near the bottom
       if( random8() < Sparking ) {
         int y = random8(max(5,ledsPerSection/10));
-        if ( s%2 == 1 ) {
-          heat[z][sectionStart[z][s]+ledsPerSection-y] = heat[z][sectionStart[z][s]+ledsPerSection-y] + random8(160,255);
-        } else {
-          heat[z][sectionStart[z][s]+y] = heat[z][sectionStart[z][s]+y] + random8(160,255);
-        }
+        pos = s%2 ? sectionEnd[z][s]-y : sectionStart[z][s]+y;
+        heat[z][pos] += random8(160,255);
       }
     
       // Step 4.  Convert heat to LED colors

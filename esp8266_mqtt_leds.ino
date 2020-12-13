@@ -38,16 +38,16 @@
 // will use PROGMEM for static strings whenever possible to reduce IRAM pressure.
 //
 // Even though this sketch supports WS2801 pixels, they are limited only to zone 0, also since WS2811 are less
-// frequently used (than WS2812) they are limited to zones 0 and 2.
+// frequently used (than WS2812) they are limited to zones 0 and 1.
 // WS2812 pixels can use zones 0 to zone 5.
 //
-// WS2801 uses SPI pins on ESP (even though FastLED lacks HW support), GPIO12 (MISO) & GPIO14 (SCLK)
-// WS2811 uses pins GPIO2 (zone 0) and GPIO0 (zone 1)
-// WS2812 uses PINS GPIO2, 0, 4, 5, 15, 13 
+// WS2801 uses SPI pins on ESP (even though FastLED lacks HW support), GPIO12 (MISO) & GPIO14 (SCLK) and is so limited to ESP12E
+// WS2811 uses pins GPIO2 (zone 0) and GPIO0 (zone 1); can be used on ESP01 as well.
+// WS2812 uses PINS GPIO2, 0, 4, 5, 15, 13 ; only zones 0 and 1 can be used on ESP01.
 
 // NOTE: Be aware, that driving # of LEDs takes time. Due to ESP8266 serial nature (use ESP32 if you want paralell
-// execution) only about 400-450 LED pixels can be driven with 30 FPS.
-// If you go beyond 300 pixels you may notice some effects becoming slow. Using slow pixels (e.g. WS2801) doesn't
+// execution) only about 600 LED pixels can be driven with 30 FPS.
+// If you go beyond 600 pixels you may notice some effects (fire,...) becoming slow. Using slow pixels (e.g. WS2801) doesn't
 // help either.
 
 
@@ -58,7 +58,6 @@
 #include "webpages.h"
 #include "boblight.h"
 
-#define POWER_RELAY 12    // GPIO12 (D6) or GPIO14 (D5)
 // global variables
 
 eeprom_data_t e;
@@ -433,11 +432,7 @@ void setup() {
     heat[i] = (byte*)calloc(numLEDs[i], sizeof(byte));  // Fire effect static data buffer
 
     // Initialize FastLED library
-    // Since FastLED uses C++ templates, we can't use variables for pin values:
-    // const int dataPINs[] = {2, 4, 12, 15};  // D4, D2, D6, D8 (may also use TX for 5th zone)
-    // const int clockPINs[] = {0, 5, 14, 13}; // D3, D1, D5, D7; for WS2801 type (may also use RX for 5th zone)
-    // FastLED.addLeds<WS2812, dataPINs[i], GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-
+    // Since FastLED uses C++ templates, we can't use variables for pin values.
     // Currently not enough IRAM for more than 4 zones. :(
     // Each FastLED.addLeds() takes 1140 bytes of IRAM
     
@@ -446,7 +441,7 @@ void setup() {
       #if DEBUG
       Serial.println(F("Adding WS2801 strip (on GPIO12, GPIO14)."));
       #endif
-      FastLED.addLeds<WS2801, 12, 14, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+      FastLED.addLeds<WS2801, 12/*D6*/, 14/*D5*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
     } else if ( strcmp_P(zoneLEDType[i], _WS2811)==0 && i<2 ) {
       // only allow WS2811 strip on zone 0 and 1 (due to memory constrains)
       #if DEBUG
@@ -532,8 +527,6 @@ void setup() {
   
   bob.begin();
   bob.setNoDelay(true);
-
-  pinMode(POWER_RELAY, OUTPUT);
 }
 
 void loop() {
@@ -656,7 +649,7 @@ void loop() {
               }
 
     case METEORRAIN :
-              meteorRain(8, 32, true, 10);  // 8% size, 64 decay, random decay, 10ms delay
+              meteorRain(8, 64, true, 10);  // 8% size, 64 decay, random decay, 10ms delay
               break;
 
     case SINELON :
@@ -1024,8 +1017,6 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       Serial.println(F("Restarting..."));
       #endif
       
-      digitalWrite(POWER_RELAY, LOW);
-
       // restart ESP
       ESP.reset();
       delay(2000);
@@ -1036,8 +1027,6 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
       Serial.println(F("Factory reset..."));
       #endif
       
-      digitalWrite(POWER_RELAY, LOW);
-
       // erase EEPROM
       EEPROM.begin(EEPROM_SIZE);
       for ( int i=0; i<EEPROM_SIZE; i++ ) {
@@ -1074,6 +1063,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 // MQTT reconnect handling
 void mqtt_reconnect() {
   char tmp[64];
+  unsigned int deadCounter=0;
 
   #if DEBUG
   Serial.print(F("Reconnecting."));
@@ -1110,6 +1100,19 @@ void mqtt_reconnect() {
       #endif
       // Wait 5 seconds before retrying
       delay(5000);
+      
+      // try reconnecting for 10 minutes then reset WiFi credentials
+      if ( deadCounter++ > 120 ) {
+        // clear WiFi data & disconnect
+        WiFi.disconnect();
+        #if DEBUG
+        Serial.println(F("WiFi disconnected"));
+        #endif
+        
+        // restart ESP
+        ESP.reset();
+        delay(2000);
+      }
     }
   }
 }
@@ -1136,18 +1139,6 @@ void changeEffect(effects_t effect) {
   Serial.print("New effect: ");
   Serial.println(selectedEffect, DEC);
   #endif
-
-  if ( selectedEffect == OFF ) {
-    #if DEBUG
-    Serial.println("Relay off");
-    #endif
-    digitalWrite(POWER_RELAY, LOW);
-  } else {
-    #if DEBUG
-    Serial.println("Relay on");
-    #endif
-    digitalWrite(POWER_RELAY, HIGH);
-  }
 }
 
 // reverses a string 'str' of length 'len' 

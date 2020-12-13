@@ -80,6 +80,7 @@ void handleRoot() {
   postForm += F("<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" value=\"Submit\"></td></tr>\n</table>\n</form>\n");
   postForm += F("<a href=\"/set/\">Configure LED strips</a><br>\n");
   postForm += F("<a href=\"/bob/\">Configure Boblight</a><br>\n");
+  postForm += F("<a href=\"/update\">Firmware update</a><br>\n");
   postForm += FPSTR(HTML_FOOT);
   server.send(200, "text/html", postForm);
 }
