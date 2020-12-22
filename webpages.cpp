@@ -1,6 +1,7 @@
 // global includes (libraries)
 
 #include <stdint.h>
+#include <string.h>
 #include <pgmspace.h>
 
 #include <ESP8266WiFi.h>          // Base ESP8266 includes
@@ -12,6 +13,8 @@
 #include <FastLED.h>
 #include <PubSubClient.h>         // MQTT client
 
+#include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
+
 
 #include "eepromdata.h"
 #include "webpages.h"
@@ -19,10 +22,17 @@
 #include "boblight.h"
 
 
+extern char mqtt_server[];
+extern char mqtt_port[];
+extern char username[];
+extern char password[];
+
 extern char c_idx[];
 extern char zoneLEDType[][7];
 extern uint16_t numLEDs[];
 extern uint8_t  gBrightness;
+
+void saveMQTTConfig();
 
 extern effects_t selectedEffect;
 void changeEffect(effects_t effect);
@@ -87,7 +97,8 @@ void handleRoot() {
 
 void handleSet() {
   char buffer[128];
-  
+  bool mqtt = false;
+
   if (server.method() != HTTP_POST) {
 
     String sections, postForm = FPSTR(HTML_HEAD);
@@ -125,7 +136,7 @@ void handleSet() {
         snprintf_P(buffer, 64, _LED_OPTION, _WS2801, (strncmp_P(zoneLEDType[i], _WS2801, 6)==0 ? _SELECTED : PSTR("")), _WS2801);
         postForm += buffer;
         postForm += F("</select></td></tr>\n");
-      } else if ( i == 1 ) {
+      } else if ( i >= 1 && i <= 3 ) {
         postForm += F("<tr><td>LED type (WS28xx):</td><td><select name=\"ledtype");
         postForm += String(i);
         postForm += F("\" size=\"1\">\n");
@@ -146,6 +157,15 @@ void handleSet() {
       postForm += F("\"></td></tr>\n");
     }
   
+    snprintf_P(buffer, 127, PSTR("<tr><td>MQTT server:</td><td><input name=\"mqttserver\" type=\"text\" size=\"40\" value=\"%s\"></td></tr>\n"), mqtt_server);
+    postForm += buffer;
+    snprintf_P(buffer, 127, PSTR("<tr><td>MQTT port:</td><td><input name=\"mqttport\" type=\"text\" size=\"5\" value=\"%s\"></td></tr>\n"), mqtt_port);
+    postForm += buffer;
+    snprintf_P(buffer, 127, PSTR("<tr><td>MQTT username:</td><td><input name=\"mqttuser\" type=\"text\" size=\"32\" value=\"%s\"></td></tr>\n"), username);
+    postForm += buffer;
+    snprintf_P(buffer, 127, PSTR("<tr><td>MQTT password:</td><td><input name=\"mqttpass\" type=\"password\" size=\"32\" value=\"%s\"></td></tr>\n"), password);
+    postForm += buffer;
+    
     postForm += F("<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" value=\"Submit\"></td></tr>\n</table>\n</form>\n</body>\n");
     postForm += FPSTR(HTML_FOOT);
     server.send(200, "text/html", postForm);
@@ -228,10 +248,47 @@ void handleSet() {
         Serial.println(argV);
         #endif
       }
+
+      if ( argN.substring(0,9) == "mqttserver" ) {
+        char mqttserver[40];
+        strcpy(mqttserver,argV.substring(0,39).c_str());
+        if ( strlen(mqttserver) > 0 && strcasecmp(mqttserver,mqtt_server) ) {
+          strcpy(mqtt_server,mqttserver);
+          mqtt = true;
+        }
+      }
+      if ( argN.substring(0,7) == "mqttport" ) {
+        char mqttport[7];
+        strcpy(mqttport,argV.substring(0,4).c_str());
+        if ( strlen(mqttport) > 0 && strcasecmp(mqttport,mqtt_port) ) {
+          strcpy(mqtt_port,mqttport);
+          mqtt = true;
+        }
+      }
+      if ( argN.substring(0,7) == "mqttuser" ) {
+        char mqttuser[33];
+        strcpy(mqttuser,argV.substring(0,31).c_str());
+        if ( strlen(mqttuser) > 0 && strcasecmp(mqttuser,username) ) {
+          strcpy(username,mqttuser);
+           mqtt = true;
+       }
+      }
+      if ( argN.substring(0,7) == "mqttpass" ) {
+        char mqttpass[33];
+        strcpy(mqttpass,argV.substring(0,31).c_str());
+        if ( strlen(mqttpass) > 0 && strcasecmp(mqttpass,password) ) {
+          strcpy(password,mqttpass);
+          mqtt = true;
+        }
+      }
     }
     message += F("<br>ESP is restarting, please wait.<br>\n");
     message += F("</body>\n</html>");
     server.send(200, "text/html", message);
+
+    if ( mqtt ) {
+      saveMQTTConfig();
+    }
 
     for ( zones=1; zones<MAXZONES; zones++ ) {
       memcpy(tnum, e.zoneData[zones].zoneLEDs, 3);

@@ -715,6 +715,7 @@ void bouncingColoredBalls(int BallCount, CRGB colors[]) {
       }
     }    
     showStrip();
+    FastLED.delay(15);
   }
 }
 

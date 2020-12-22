@@ -28,13 +28,14 @@
 
 #include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
 
+#define FASTLED_INTERNAL //remove annoying pragma messages
 //#define FASTLED_ALLOW_INTERRUPTS 0
 #define FASTLED_INTERRUPT_RETRY_COUNT 0
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #include <FastLED.h>
 
 // NOTE: FastLED is a very memory hungry library. Each call to FastLED.addLeds() consumes around 1k of
-// IRAM memory which is limited to 32k. Also ever static string gets stored to IRAM by default so we
+// IRAM memory which is limited to 32k. Also every static string gets stored to IRAM by default so we
 // will use PROGMEM for static strings whenever possible to reduce IRAM pressure.
 //
 // Even though this sketch supports WS2801 pixels, they are limited only to zone 0, also since WS2811 are less
@@ -358,26 +359,7 @@ void setup() {
 
   //save the custom parameters to FS
   if ( shouldSaveConfig ) {
-    DynamicJsonDocument doc(1024);
-    doc[_MQTTSVR] = mqtt_server;
-    doc[_MQTTPRT] = mqtt_port;
-    doc[_USERNAME] = username;
-    doc[_PASSWORD] = password;
-
-    File configFile = SPIFFS.open(FPSTR(_CONFIG), "w");
-    if ( !configFile ) {
-      // failed to open config file for writing
-      #if DEBUG
-      Serial.println(F("Error opening config file fo writing."));
-      #endif
-    } else {
-      serializeJson(doc, configFile);
-      configFile.close();
-      #if DEBUG
-      serializeJson(doc, Serial);
-      #endif
-    }
-
+    saveMQTTConfig();
   }
 //----------------------------------------------------------
 
@@ -454,12 +436,12 @@ void setup() {
         case 1:
           FastLED.addLeds<WS2811, 0/*D3*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-//        case 2:
-//          FastLED.addLeds<WS2811, 4/*D2*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-//          break;
-//        case 3:
-//          FastLED.addLeds<WS2811, 5/*D1*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-//          break;
+        case 2:
+          FastLED.addLeds<WS2811, 4/*D2*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
+        case 3:
+          FastLED.addLeds<WS2811, 5/*D1*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+          break;
 //        case 4:
 //          FastLED.addLeds<WS2811, 15/*D8*/, RGB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
 //          break;
@@ -481,12 +463,12 @@ void setup() {
         case 3:
           FastLED.addLeds<WS2812, 5/*D1*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
           break;
-        case 4:
-          FastLED.addLeds<WS2812, 15/*D8*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
-        case 5:
-          FastLED.addLeds<WS2812, 13/*D7*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
-          break;
+//        case 4:
+//          FastLED.addLeds<WS2812, 15/*D8*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+//          break;
+//        case 5:
+//          FastLED.addLeds<WS2812, 13/*D7*/, GRB>(leds[i], numLEDs[i]).setCorrection(TypicalLEDStrip);
+//          break;
       }
     }
   }
@@ -1202,7 +1184,31 @@ char *ftoa(float n, char *res, int afterpoint)
     intToStr(abs((int)fpart), res + i + 1, afterpoint); 
   }
   return res;
-} 
+}
+
+// MQTT save
+void saveMQTTConfig()
+{
+  DynamicJsonDocument doc(1024);
+  doc[_MQTTSVR] = mqtt_server;
+  doc[_MQTTPRT] = mqtt_port;
+  doc[_USERNAME] = username;
+  doc[_PASSWORD] = password;
+
+  File configFile = SPIFFS.open(FPSTR(_CONFIG), "w");
+  if ( !configFile ) {
+    // failed to open config file for writing
+    #if DEBUG
+    Serial.println(F("Error opening config file fo writing."));
+    #endif
+  } else {
+    serializeJson(doc, configFile);
+    configFile.close();
+    #if DEBUG
+    serializeJson(doc, Serial);
+    #endif
+  }
+}
 
 //callback notifying us of the need to save config
 void saveConfigCallback ()

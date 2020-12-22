@@ -1,6 +1,6 @@
 #define DEBUG 1
 
-#define MAXZONES 6              // could go up to 8, if not using WS2801 pixels
+#define MAXZONES 4              // could go up to 8, if not using WS2801 pixels
 #define MAXSECTIONS 16          // don't go wild; 9 sections per zone/LED strip is enough
 
 extern uint8_t  numZones;       // number of zones (LED strips), each zone requires a GPIO pin (or two)
