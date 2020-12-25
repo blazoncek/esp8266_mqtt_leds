@@ -495,20 +495,21 @@ void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
   ++q;  // we will have occassional hick-up when the counter rolls over
   for ( int z=(bobClient && bobClient.connected())?1:0; z<numZones; z++ ) {
 
+    bool rotate = Reverse;
     // we will repurpose Reverse for Rotating chase (xmas tree with multiple zig-zag sections)
-    if ( Reverse ) {
+    if ( rotate ) {
       // fail-safes first
       if ( numSections[z] < 2 ) {
         // number of sections is smaller than minimum window size
         // we will not do a rotating chase
-        Reverse = false;
+        rotate = false;
       } else if ( numSections[z] % (3*Size) ) {
         // number of sections is not multiple of window size
         // we need to change size
         if ( numSections[z] % 3 ) {
           // number of sections is not multiple of 3
           // we will not do a rotating chase
-          Reverse = false;
+          rotate = false;
         } else {
           // change Size and adjust window
           Size = numSections[z] / 3;
@@ -531,7 +532,7 @@ void colorChase(CRGB c[], int Size, int SpeedDelay, boolean Reverse) {
       for ( int i=0; i<ledsPerSection; i+=window ) {
         // turn LEDs on: ..++++####....++++####..   (size=4, . = c0, + = c1, # = c2)
         for ( int j=0; j<Size; j++ ) {
-          uint16_t pos = (q%window) + j + (Reverse?s:0); // if rotating add offset by current section#
+          uint16_t pos = (q%window) + j + (rotate?s:0); // if rotating add offset by current section#
 
           // Every odd section is reversed (zig-zag mounted strips, xmas tree)
           if ( s%2 ) {

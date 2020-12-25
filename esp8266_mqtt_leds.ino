@@ -649,7 +649,7 @@ void loop() {
     case COLORCHASE :
               {
               CRGB colors[3] = { CHSV(gHue,255,255), CHSV((gHue+128)&0xFF,255,255), CRGB::Black };
-              colorChase(colors, 4, 50, true);  // 4 pixel size, 50ms delay, rotating if possible
+              colorChase(colors, 4, 25, true);  // 4 pixel size, 50ms delay, rotating if possible
               gHue++;
               break;
               }
