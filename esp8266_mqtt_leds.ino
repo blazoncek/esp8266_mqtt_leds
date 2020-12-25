@@ -43,8 +43,8 @@
 // WS2812 pixels can use zones 0 to zone 5.
 //
 // WS2801 uses SPI pins on ESP (even though FastLED lacks HW support), GPIO12 (MISO) & GPIO14 (SCLK) and is so limited to ESP12E
-// WS2811 uses pins GPIO2 (zone 0) and GPIO0 (zone 1); can be used on ESP01 as well.
-// WS2812 uses PINS GPIO2, 0, 4, 5, 15, 13 ; only zones 0 and 1 can be used on ESP01.
+// WS2811 uses pins GPIO2, 0, 4, 5; only zones 0 and 1 can be used on ESP01.
+// WS2812 uses PINS GPIO2, 0, 4, 5; only zones 0 and 1 can be used on ESP01.
 
 // NOTE: Be aware, that driving # of LEDs takes time. Due to ESP8266 serial nature (use ESP32 if you want paralell
 // execution) only about 600 LED pixels can be driven with 30 FPS.
